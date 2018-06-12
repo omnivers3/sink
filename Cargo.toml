@@ -1,0 +1,6 @@
+[package]
+name = "sink_rs"
+version = "0.1.0"
+authors = ["Perry Birch <perry_m_birch@homedepot.com>"]
+
+[dependencies]
