@@ -6,8 +6,6 @@
 //! As a base primitive this should enable a message oriented variant of the
 //! inbound params to the familiar imperitive Result 'and_then' composition pattern.
 
-use std::boxed::FnBox;
-
 /// Main sink trait representing a receiver which immediately responds to send with
 /// a Result<TResult, TError> enabling implementations to encapsulate both sync and
 /// async processing with a sync response.
