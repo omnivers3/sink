@@ -1,14 +1,14 @@
-#![feature(fnbox)]
-
 //! This crate aims to provide an abstraction for a thing which can be sent values
 //! and, immediately, return a Result indicating success / failure of receipt.
 //! 
 //! As a base primitive this should enable a message oriented variant of the
 //! inbound params to the familiar imperitive Result 'and_then' composition pattern.
+//!
+//! Main sink trait representing a receiver which immediately responds to send with
+//! a Result<TResult, TError> enabling implementations to encapsulate both sync and
+//! async processing with a sync response.
 
-/// Main sink trait representing a receiver which immediately responds to send with
-/// a Result<TResult, TError> enabling implementations to encapsulate both sync and
-/// async processing with a sync response.
+/// The ISink trait acts as a target to which many values can be sent
 pub trait ISink
 {
     type TInput;
@@ -19,10 +19,9 @@ pub trait ISink
 }
 
 /// Sink is a simple struct which captures a provided handler function and routes
-/// sent data into that handler.
+/// sent data into that handler
 pub struct Sink<'a, TInput, TResult, TError> {
     handler: Box<Fn(TInput) -> Result<TResult, TError> + 'a>,
-    // handler: Box<Fn(TInput) -> Result<TResult, TError> + 'a>,
 }
 
 impl <'a, TInput, TResult, TError> Sink<'a, TInput, TResult, TError> {
@@ -36,7 +35,6 @@ impl <'a, TInput, TResult, TError> Sink<'a, TInput, TResult, TError> {
     }
 }
 
-/// Implement the ISink trait for all generic variants of Sink
 impl <'a, TInput, TResult, TError> ISink for Sink<'a, TInput, TResult, TError> where
 {
     type TInput = TInput;
@@ -44,7 +42,6 @@ impl <'a, TInput, TResult, TError> ISink for Sink<'a, TInput, TResult, TError> w
     type TError = TError;
 
     fn send(&self, input: <Self as ISink>::TInput) -> Result<<Self as ISink>::TResult, <Self as ISink>::TError> {
-        println!("Sink -> ISink - Send");
         (self.handler)(input)
     }
 }
@@ -72,73 +69,6 @@ mod sink_tests {
         sink.send(()).unwrap();
     }
 }
-
-/*
-/// SinkOnce is a simple struct which captures a provided handler function and routes
-/// sent data into that handler.
-pub struct SinkOnce<'a, TInput, TResult, TError> {
-    handler: Box<FnBox(TInput) -> Result<TResult, TError> + 'a>,
-    // handler: Box<Fn(TInput) -> Result<TResult, TError> + 'a>,
-}
-
-impl <'a, TInput, TResult, TError> SinkOnce<'a, TInput, TResult, TError> {
-    /// Builds a Sink using the provided handler
-    pub fn new<F: 'a>(handler: F) -> Self where
-        F: FnOnce(TInput) -> Result<TResult, TError> + 'a
-    {
-        SinkOnce {
-            handler: Box::new(handler),
-        }
-    }
-}
-
-/// Implement the ISink trait for all generic variants of SinkOnce
-impl <'a, TInput, TResult, TError> ISink for SinkOnce<'a, TInput, TResult, TError> where
-{
-    type TInput = TInput;
-    type TResult = TResult;
-    type TError = TError;
-
-    fn send(&self, input: <Self as ISink>::TInput) -> Result<<Self as ISink>::TResult, <Self as ISink>::TError> {
-        println!("SinkOnce -> ISink - Send");
-        // (self.handler)(input)
-    }
-}
-
-#[cfg(test)]
-mod sink_once_tests {
-    use super::*;
-
-    #[test]
-    fn should_send_single_item_to_sinkonce() {
-        let mut count = 0;
-
-        let sink = SinkOnce::<(), (), ()>::new(move | _item | {
-            // count += 1;
-            Ok (())
-        });
-
-        sink.send(()).unwrap();
-
-        assert_eq!(1, count);
-    }
-
-    #[test]
-    fn should_send_multiple_items_to_sinkonce() {
-        let mut count = 0;
-
-        let sink = SinkOnce::<(), (), ()>::new(move | _item | {
-            // count += 1;
-            Ok (())
-        });
-
-        sink.send(()).unwrap();
-        sink.send(()).unwrap();
-
-        assert_eq!(2, count);
-    }
-}
-*/
 
 /// Sink implementation which owns an internal state that is made available to
 /// the provided handler when values are sent to it
@@ -171,7 +101,6 @@ impl <'a, TState, TInput, TResult, TError> StatefulSink<'a, TState, TInput, TRes
     }
 }
 
-/// Implement the ISink trait for all generic variants of StatefulSink
 impl <'a, TState, TInput, TResult, TError> ISink for StatefulSink<'a, TState, TInput, TResult, TError> where
     TState: Clone,
 {
@@ -180,7 +109,6 @@ impl <'a, TState, TInput, TResult, TError> ISink for StatefulSink<'a, TState, TI
     type TError = TError;
 
     fn send(&self, input: <Self as ISink>::TInput) -> Result<<Self as ISink>::TResult, <Self as ISink>::TError> {
-        println!("StatefulSink -> ISink - Send");
         (self.handler)(self.state.to_owned(), input)
     }
 }
@@ -214,7 +142,7 @@ mod stateful_sink_tests {
     fn should_update_state_on_send_given_mutable_type() {
         let initial = RefCell::new(10);
 
-        let s = StatefulSink::<&RefCell<u32>, u32, u32, ()>::with_state(&initial, | s, item | {
+        let s = StatefulSink::<&RefCell<usize>, usize, usize, ()>::with_state(&initial, | s, item | {
             let mut value = s.borrow_mut();
             *value += item;
             Ok (value.to_owned())
@@ -232,18 +160,14 @@ mod stateful_sink_tests {
 /// ``` rust
 /// # use sink_rs::*;
 /// 
-/// let s = Sink::new(| item | {
-///     if item == 0 {
-///         Ok(item)
-///     } else {
-///         Err(item)
-///     }
+/// let s = Sink::<usize, usize, ()>::new(| item | {
+///    Ok(item)
 /// });
 /// 
 /// let mut sm = SinkMap::new(s, | item: String | { item.len() });
 /// 
 /// assert_eq!(Ok (0), sm.send("".to_owned()));
-/// assert_eq!(Err (9), sm.send("some text".to_owned()));
+/// assert_eq!(Ok (9), sm.send("some text".to_owned()));
 /// 
 /// ```
 /// 
@@ -252,16 +176,12 @@ mod stateful_sink_tests {
 /// ``` rust
 /// # use sink_rs::*;
 /// 
-/// let mut s = Sink::new(| item | {
-///     if item == 0 {
-///         Ok(item)
-///     } else {
-///         Err(item)
-///     }
+/// let mut s = Sink::<usize, usize, ()>::new(| item | {
+///     Ok(item)
 /// }).map(| item: String | { item.len() });
 /// 
 /// assert_eq!(Ok (0), s.send("".to_owned()));
-/// assert_eq!(Err (9), s.send("some text".to_owned()));
+/// assert_eq!(Ok (9), s.send("some text".to_owned()));
 /// ```
 pub struct SinkMap<'a, TInput, UInput, TResult, TError, TSink: Sized> where
     TSink: ISink<TInput=TInput, TResult=TResult, TError=TError>,
@@ -275,7 +195,7 @@ impl <'a, TInput, UInput, TResult, TError, TSink> SinkMap<'a, TInput, UInput, TR
 {
     /// Build a new SinkMap which uses the provided map to translate the incoming values
     /// into the target's expected type and an owned target allowing the caller to decide
-    /// sharing rules.
+    /// sharing rules
     pub fn new<F: 'a>(target: TSink, map: F) -> Self where
         F: Fn(UInput) -> TInput + 'a,
     {
@@ -286,8 +206,6 @@ impl <'a, TInput, UInput, TResult, TError, TSink> SinkMap<'a, TInput, UInput, TR
     }
 }
 
-/// Implements ISink for all SinkMaps such that the map is applied and the resulting value
-/// is routed to the target's send.
 impl <'a, TInput, UInput, TResult, TError, TSink> ISink for SinkMap<'a, TInput, UInput, TResult, TError, TSink> where
     TSink: ISink<TInput=TInput, TResult=TResult, TError=TError>
 {
@@ -296,13 +214,12 @@ impl <'a, TInput, UInput, TResult, TError, TSink> ISink for SinkMap<'a, TInput, 
     type TError = TError;
 
     fn send(&self, input: <Self as ISink>::TInput) -> Result<<Self as ISink>::TResult, <Self as ISink>::TError> {
-        println!("SinkMap -> ISink - Send");
         self.target.send((self.map)(input))
     }
 }
 
 /// The ISinkMap trait describes the parameters necessary to link a target Sink
-/// and a mapping function through a SinkMap, generaling it's constructor.
+/// and a mapping function through a SinkMap, generaling it's constructor
 pub trait ISinkMap<'a, TInput, TResult, TError, TSink> where
     TSink: ISink<TInput=TInput, TResult=TResult, TError=TError>,
     Self: ISink<TInput=TInput, TResult=TResult, TError=TError>,
@@ -310,7 +227,6 @@ pub trait ISinkMap<'a, TInput, TResult, TError, TSink> where
     fn map<UInput, F: Fn(UInput) -> TInput + 'a>(self, map: F) -> SinkMap<'a, TInput, UInput, TResult, TError, TSink>;
 }
 
-/// Implement ISinkMap on all generic variants of ISink
 impl <'a, T, TInput, TResult, TError> ISinkMap<'a, TInput, TResult, TError, T> for T where
     Self: ISink<TInput=TInput, TResult=TResult, TError=TError>,
     T: ISink<TInput=TInput, TResult=TResult, TError=TError>,
@@ -327,32 +243,24 @@ mod sink_map_tests {
     #[test]
     fn should_explicitly_construct_a_sinkmap() {
 
-        let s = Sink::new(| item | {
-            if item == 0 {
-                Ok(item)
-            } else {
-                Err(item)
-            }
+        let s = Sink::<usize, usize, ()>::new(| item | {
+            Ok(item)
         });
 
         let sm = SinkMap::new(s, | item: String | { item.len() });
 
         assert_eq!(Ok (0), sm.send("".to_owned()));
-        assert_eq!(Err (9), sm.send("some text".to_owned()));
+        assert_eq!(Ok (9), sm.send("some text".to_owned()));
     }
 
     #[test]
     fn should_construct_a_sinkmap_through_the_map_function() {
 
-        let s = Sink::new(| item | {
-            if item == 0 {
-                Ok(item)
-            } else {
-                Err(item)
-            }
+        let s = Sink::<usize, usize, ()>::new(| item | {
+            Ok(item)
         }).map(| item: String | { item.len() });
 
         assert_eq!(Ok (0), s.send("".to_owned()));
-        assert_eq!(Err (9), s.send("some text".to_owned()));
+        assert_eq!(Ok (9), s.send("some text".to_owned()));
     }
 }
