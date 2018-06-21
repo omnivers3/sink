@@ -35,7 +35,7 @@ impl <'a, TInput, TResult, TError> Sink<'a, TInput, TResult, TError> {
     }
 }
 
-impl <'a, TInput, TResult, TError> ISink for Sink<'a, TInput, TResult, TError> where
+impl <'a, TInput, TResult, TError> ISink for Sink<'a, TInput, TResult, TError>
 {
     type TInput = TInput;
     type TResult = TResult;

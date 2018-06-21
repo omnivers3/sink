@@ -39,3 +39,7 @@ This also means that downstream recipients are explicitly decoupled from the ori
 [Implementing Function Composition](https://users.rust-lang.org/t/implementing-function-composition/8255/2)
 
 [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/)
+
+## CI/CD
+
+[Building a Rust Project on CircleCI](https://abronan.com/building-a-rust-project-on-circleci/)
