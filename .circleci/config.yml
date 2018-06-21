@@ -1,15 +1,46 @@
-version: 2
-dependencies:
-  post:
-    - git config --global user.email perry_m_birch@homedepot.com
-    - git config --global user.name "Perry Birch"
-    - curl -sf -L https://static.rust-lang.org/rustup.sh | sh /dev/stdin --channel=nightly --yes
-test:
-  override:
-    - cargo test
+jobs:
+  build:
+    docker:
+      # The image used to build our project, build
+      # your own using the Dockerfile provided below
+      # and replace here. I put my own image here for
+      # the example.
+      - image: abronan/rust-circleci:latest
 
-deployment:
-  docs:
-    branch: cicd
-    commands:
-      - cargo doc && git fetch origin gh-pages && git checkout gh-pages && (git mv doc doc-$(git describe --always master^) || rm -rf doc) && mv target/doc/ ./doc && git add -A ./doc* && git commit -m 'update docs' && git push origin gh-pages
+    environment:
+      # Set your codecov token if your repository is private.
+      CODECOV_TOKEN: 10f59a58-1b0c-40c1-a4d7-8e3e65c9ecf0
+      TZ: "/usr/share/zoneinfo/US/Pacific"
+
+    steps:
+      - checkout
+      - restore_cache:
+          key: project-cache
+      - run:
+          name: Check formatting
+          command: |
+            rustfmt --version
+            cargo fmt -- --write-mode=diff
+      - run:
+          name: Nightly Build
+          command: |
+            rustup run nightly rustc --version --verbose
+            rustup run nightly cargo --version --verbose
+            rustup run nightly cargo build
+      - run:
+          name: Stable Build
+          command: |
+            rustup run stable rustc --version --verbose
+            rustup run stable cargo --version --verbose
+            rustup run stable cargo build
+      - run:
+          name: Test
+          command: rustup run stable cargo test
+      - run:
+          name: Upload Coverage
+          command: ./scripts/codecov.sh
+      - save_cache:
+          key: project-cache
+          paths:
+            - "~/.cargo"
+            - "./target"
