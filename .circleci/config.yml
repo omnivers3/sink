@@ -1,13 +1,15 @@
 version: 2
-jobs:
-  build:
-    docker:
-      - image: debian:stretch
-    steps:
-      - checkout
-      - run:
-          name: Greeting
-          command: echo Hello, world.
-      - run:
-          name: Print the Current Time
-          command: date
+dependencies:
+  post:
+    - git config --global user.email perry_m_birch@homedepot.com
+    - git config --global user.name "Perry Birch"
+    - curl -sf -L https://static.rust-lang.org/rustup.sh | sh /dev/stdin --channel=nightly --yes
+test:
+  override:
+    - cargo test
+
+deployment:
+  docs:
+    branch: cicd
+    commands:
+      - cargo doc && git fetch origin gh-pages && git checkout gh-pages && (git mv doc doc-$(git describe --always master^) || rm -rf doc) && mv target/doc/ ./doc && git add -A ./doc* && git commit -m 'update docs' && git push origin gh-pages
