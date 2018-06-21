@@ -43,3 +43,10 @@ This also means that downstream recipients are explicitly decoupled from the ori
 ## CI/CD
 
 [Building a Rust Project on CircleCI](https://abronan.com/building-a-rust-project-on-circleci/)
+
+
+> To Get RustFmt Options:
+
+````bash
+rustup run nightly -- rustfmt --help
+````

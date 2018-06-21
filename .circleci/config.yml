@@ -2,7 +2,8 @@ version: 2
 jobs:
   build:
     docker:
-      - image: abronan/rust-circleci:latest
+      - image: naftulikay/circleci-rust:latest
+      # abronan/rust-circleci:latest
 
     environment:
       TZ: "/usr/share/zoneinfo/US/Pacific"
@@ -14,8 +15,9 @@ jobs:
       - run:
           name: Check formatting
           command: |
+            rustup component add rustfmt-preview
             rustfmt --version
-            cargo fmt -- --write-mode=diff
+            cargo +nightly fmt -- --check
       - run:
           name: Nightly Build
           command: |
