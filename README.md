@@ -1,4 +1,4 @@
-# sink-rs
+# omnivers3/sink
 
 This crate aims to provide an abstraction for a thing which can be sent values
 and, immediately, return a Result indicating success / failure of receipt.

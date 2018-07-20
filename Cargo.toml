@@ -1,16 +1,18 @@
 [package]
-name = "sink_rs"
+name = "sink"
 version = "0.1.0"
-authors = ["Perry Birch <perry_m_birch@homedepot.com>"]
+authors = ["Perry Birch <perrybirch@vizidrix.com>"]
 license = "MIT"
 readme = "README.md"
-keywords = ["sink"]
-repository = "https://github.com/omnivers3/sink-rs"
+keywords = ["omnivers3", "sink"]
+repository = "https://github.com/omnivers3/sink"
 description = """
 This crate aims to provide an abstraction for a thing which can be sent values
 and, immediately, return a Result indicating success / failure of receipt.
-
 As a base primitive this should enable a message oriented variant of the
 inbound params to the familiar imperitive Result 'and_then' composition pattern.
 """
 categories = ["streaming"]
+
+[badges]
+circle-ci = { repository = "omnivers3/sink", branch = "master" }
