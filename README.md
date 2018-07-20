@@ -19,20 +19,17 @@ We don't want to consume the sink so that it can be reused to send many times.
 
 We also don't want to require the sender maintain a mutable reference to the sink.
 
-
 * Delegated Mutation
 
 StatefulSink requires that the creator manages mutation by taking ownership of the state type in it's struct.
 
 This means that mutation and thread-safety level concerns are pushed out to the implementors.
 
-
 * Send takes ownership of the sent value
 
 Similar to Delegated Mutation, this forces the sender to be responsible for sharing, thread-safety, etc.
 
 This also means that downstream recipients are explicitly decoupled from the originating source.
-
 
 ## Some Helpful References
 
@@ -43,7 +40,6 @@ This also means that downstream recipients are explicitly decoupled from the ori
 ## CI/CD
 
 [Building a Rust Project on CircleCI](https://abronan.com/building-a-rust-project-on-circleci/)
-
 
 > To Get RustFmt Options:
 
