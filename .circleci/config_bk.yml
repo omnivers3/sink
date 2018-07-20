@@ -1,0 +1,75 @@
+version: 2
+jobs:
+  build:
+    branches:
+      ignore:
+        - gh-pages
+    docker:
+      - image: liuchong/rustup:nightly-musl
+    
+dependencies:
+  post:
+    - git config --global user.email perry_m_birch@homedepot.com
+    - git config --global user.name "Perry Birch"
+    - curl -sf -L https://static.rust-lang.org/rustup.sh | sh /dev/stdin --channel=nightly --yes
+test:
+  override:
+    - cargo test
+
+deployment:
+  docs:
+    branch: cicd
+    commands:
+      - cargo doc 
+      -&& git fetch origin gh-pages 
+      -&& git checkout gh-pages 
+      -&& (git mv doc doc-$(git describe --always master^) || rm -rf doc) 
+      -&& mv target/doc/ ./doc 
+      -&& git add -A ./doc* && git commit -m 'update docs' 
+      -&& git push origin gh-pages
+
+
+
+version: 2
+jobs:
+  build:
+    docker:
+      - image: naftulikay/circleci-rust:latest
+      # abronan/rust-circleci:latest
+
+    environment:
+      TZ: "/usr/share/zoneinfo/US/Pacific"
+
+    steps:
+      - checkout
+      - restore_cache:
+          key: project-cache
+      - run:
+          name: Check formatting
+          command: |
+            rustup component add rustfmt-preview
+            rustfmt --version
+            cargo +nightly fmt -- --check
+      - run:
+          name: Nightly Build
+          command: |
+            rustup run nightly rustc --version --verbose
+            rustup run nightly cargo --version --verbose
+            rustup run nightly cargo build
+      - run:
+          name: Stable Build
+          command: |
+            rustup run stable rustc --version --verbose
+            rustup run stable cargo --version --verbose
+            rustup run stable cargo build
+      - run:
+          name: Test
+          command: rustup run stable cargo test
+      - run:
+          name: Upload Coverage
+          command: ./scripts/codecov.sh
+      - save_cache:
+          key: project-cache
+          paths:
+            - "~/.cargo"
+            - "./target"
