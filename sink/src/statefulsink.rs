@@ -44,7 +44,7 @@ where
     type TResult = TResult;
     type TError = TError;
 
-    fn send(
+    fn handle(
         &self,
         input: <Self as ISink>::TInput,
     ) -> Result<<Self as ISink>::TResult, <Self as ISink>::TError> {
@@ -59,22 +59,22 @@ mod stateful_sink_tests {
     use std::cell::RefCell;
 
     #[test]
-    fn should_send_single_item_to_statefulsink() {
+    fn should_handle_single_item_to_statefulsink() {
         let sink = StatefulSink::<(), (), (), ()>::new(|_state, _item| Ok(()));
 
-        sink.send(()).unwrap();
+        sink.handle(()).unwrap();
     }
 
     #[test]
-    fn should_send_multiple_items_to_statefulsink() {
+    fn should_handle_multiple_items_to_statefulsink() {
         let sink = StatefulSink::<(), (), (), ()>::new(|_state, _item| Ok(()));
 
-        sink.send(()).unwrap();
-        sink.send(()).unwrap();
+        sink.handle(()).unwrap();
+        sink.handle(()).unwrap();
     }
 
     #[test]
-    fn should_update_state_on_send_given_mutable_type() {
+    fn should_update_state_on_handle_given_mutable_type() {
         let initial = RefCell::new(10);
 
         let s =
@@ -84,7 +84,7 @@ mod stateful_sink_tests {
                 Ok(value.to_owned())
             });
 
-        assert_eq!(Ok(20), s.send(10));
-        assert_eq!(Ok(40), s.send(20));
+        assert_eq!(Ok(20), s.handle(10));
+        assert_eq!(Ok(40), s.handle(20));
     }
 }
