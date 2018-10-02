@@ -41,10 +41,10 @@ where
     TInput: Clone,
 {
     type TInput = TInput;
-    type TResult = usize;
-    type TError = Error;
+    type TResult = Result<usize, Error>;
+    // type TError = Error;
 
-    fn handle(&self, input: Self::TInput) -> Result<Self::TResult, Self::TError> {
+    fn handle(&self, input: Self::TInput) -> Self::TResult {
         self.push(input)
     }
 }
@@ -54,16 +54,16 @@ where
     TInput: Clone,
 {
     type TInput = TInput;
-    type TResult = usize;
-    type TError = Error;
+    type TResult = Result<usize, Error>;
+    // type TError = Error;
 
-    fn handle(&self, input: Self::TInput) -> Result<Self::TResult, Self::TError> {
+    fn handle(&self, input: Self::TInput) -> Self::TResult {
         self.push(input)
     }
 }
 
 #[cfg(test)]
-mod stateful_sink_tests {
+mod vecsink_tests {
     use super::*;
 
     #[test]

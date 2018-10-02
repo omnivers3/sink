@@ -2,15 +2,15 @@ use super::*;
 
 /// Sink implementation which owns an internal state that is made available to
 /// the provided handler when values are sent to it
-pub struct StatefulSink<'a, TState, TInput, TResult, TError>
+pub struct StatefulSink<'a, TState, TInput, TResult>
 where
     TState: Clone,
 {
     state: TState,
-    handler: Box<Fn(TState, TInput) -> Result<TResult, TError> + 'a>,
+    handler: Box<Fn(TState, TInput) -> TResult + 'a>,
 }
 
-impl<'a, TState, TInput, TResult, TError> StatefulSink<'a, TState, TInput, TResult, TError>
+impl<'a, TState, TInput, TResult> StatefulSink<'a, TState, TInput, TResult>
 where
     TState: Clone,
 {
@@ -18,7 +18,7 @@ where
     pub fn new<F: 'a>(handler: F) -> Self
     where
         TState: Default,
-        F: Fn(TState, TInput) -> Result<TResult, TError> + 'a,
+        F: Fn(TState, TInput) -> TResult + 'a,
     {
         StatefulSink::with_state(TState::default(), handler)
     }
@@ -26,7 +26,7 @@ where
     /// Builds a StatefulSink using the TState provided
     pub fn with_state<F: 'a>(state: TState, handler: F) -> Self
     where
-        F: Fn(TState, TInput) -> Result<TResult, TError> + 'a,
+        F: Fn(TState, TInput) -> TResult + 'a,
     {
         StatefulSink {
             state: state,
@@ -35,42 +35,41 @@ where
     }
 }
 
-impl<'a, TState, TInput, TResult, TError> ISink
-    for StatefulSink<'a, TState, TInput, TResult, TError>
+impl<'a, TState, TInput, TResult> ISink
+    for StatefulSink<'a, TState, TInput, TResult>
 where
     TState: Clone,
 {
     type TInput = TInput;
     type TResult = TResult;
-    type TError = TError;
 
     fn handle(
         &self,
         input: <Self as ISink>::TInput,
-    ) -> Result<<Self as ISink>::TResult, <Self as ISink>::TError> {
+    ) -> <Self as ISink>::TResult {
         (self.handler)(self.state.to_owned(), input)
     }
 }
 
 #[cfg(test)]
-mod stateful_sink_tests {
+mod statefulsink_tests {
     use super::*;
 
     use std::cell::RefCell;
 
     #[test]
     fn should_handle_single_item_to_statefulsink() {
-        let sink = StatefulSink::<(), (), (), ()>::new(|_state, _item| Ok(()));
+        let sink = StatefulSink::<(), _, _>::new(|_state, _item| ());
 
-        sink.handle(()).unwrap();
+        sink.handle(());
     }
 
     #[test]
     fn should_handle_multiple_items_to_statefulsink() {
-        let sink = StatefulSink::<(), (), (), ()>::new(|_state, _item| Ok(()));
+        let sink = StatefulSink::<(), _, _>::new(|_state, _item| ());
 
-        sink.handle(()).unwrap();
-        sink.handle(()).unwrap();
+        sink.handle(());
+        sink.handle(());
     }
 
     #[test]
@@ -78,13 +77,13 @@ mod stateful_sink_tests {
         let initial = RefCell::new(10);
 
         let s =
-            StatefulSink::<&RefCell<usize>, usize, usize, ()>::with_state(&initial, |s, item| {
+            StatefulSink::with_state(&initial, |s, item| {
                 let mut value = s.borrow_mut();
                 *value += item;
-                Ok(value.to_owned())
+                value.to_owned()
             });
 
-        assert_eq!(Ok(20), s.handle(10));
-        assert_eq!(Ok(40), s.handle(20));
+        assert_eq!(20, s.handle(10));
+        assert_eq!(40, s.handle(20));
     }
 }
