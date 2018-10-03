@@ -22,7 +22,7 @@ mod echosink_tests {
         let sink = EchoSink::new();
 
         assert_eq!(10, sink.handle(10));
-        // Cannot reuse the same echo sink for different values...
+        // Cannot reuse the same echo sink for different value types...
         // assert_eq!("asdf", sink.handle("asdf"));
     }
 }
