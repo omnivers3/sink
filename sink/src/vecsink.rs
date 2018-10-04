@@ -1,4 +1,4 @@
-use super::{ ISink };
+use super::ISink;
 use std::cell::RefCell;
 
 #[derive(Debug)]
@@ -6,7 +6,7 @@ pub enum Error {
     Overflow,
 }
 
-/// VecSink is a simple accumulator to capture signals from a source
+/// Vec is a simple accumulator to capture signals from a source
 pub struct VecSink<TInput>
 where
     TInput: Clone,
@@ -32,7 +32,7 @@ where
     fn push(&self, input: TInput) -> Result<usize, Error> {
         let mut data = self.data.borrow_mut();
         (*data).push(input);
-        Ok (data.len() - 1)
+        Ok(data.len() - 1)
     }
 }
 

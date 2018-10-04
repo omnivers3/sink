@@ -27,8 +27,7 @@ where
     }
 
     /// Builds a StatefulSink using the TState provided
-    pub fn with_state(state: TState, handler: FHandler) -> Self
-    {
+    pub fn with_state(state: TState, handler: FHandler) -> Self {
         StatefulSink {
             state: state,
             handler: handler,
@@ -37,8 +36,7 @@ where
     }
 }
 
-impl<FHandler, TState, TInput, TResult> ISink
-    for StatefulSink<FHandler, TState, TInput, TResult>
+impl<FHandler, TState, TInput, TResult> ISink for StatefulSink<FHandler, TState, TInput, TResult>
 where
     TState: Clone,
     FHandler: Fn(&TState, TInput) -> TResult,
@@ -46,10 +44,7 @@ where
     type TInput = TInput;
     type TResult = TResult;
 
-    fn handle(
-        &self,
-        input: <Self as ISink>::TInput,
-    ) -> <Self as ISink>::TResult {
+    fn handle(&self, input: <Self as ISink>::TInput) -> <Self as ISink>::TResult {
         (self.handler)(&self.state, input)
     }
 }
@@ -58,8 +53,10 @@ pub trait IntoStatefulSink
 where
     Self: Sized,
 {
-    fn into_sink<TInput, TResult, FHandler: Fn(&Self, TInput) -> TResult>(self, handler: FHandler) -> StatefulSink<FHandler, Self, TInput, TResult>
-    {
+    fn into_sink<TInput, TResult, FHandler: Fn(&Self, TInput) -> TResult>(
+        self,
+        handler: FHandler,
+    ) -> StatefulSink<FHandler, Self, TInput, TResult> {
         StatefulSink::with_state(self, handler)
     }
 }
@@ -91,12 +88,11 @@ mod statefulsink_tests {
     fn should_update_state_on_handle_given_mutable_type() {
         let initial = RefCell::new(10);
 
-        let s =
-            StatefulSink::with_state(&initial, |s, item| {
-                let mut value = s.borrow_mut();
-                *value += item;
-                value.to_owned()
-            });
+        let s = StatefulSink::with_state(&initial, |s, item| {
+            let mut value = s.borrow_mut();
+            *value += item;
+            value.to_owned()
+        });
 
         assert_eq!(20, s.handle(10));
         assert_eq!(40, s.handle(20));
@@ -104,12 +100,11 @@ mod statefulsink_tests {
 
     #[test]
     fn should_update_state_on_handle_given_defaulted_mutable_type() {
-        let s =
-            StatefulSink::new(|s: &RefCell<u32>, item| {
-                let mut value = s.borrow_mut();
-                *value += item;
-                value.to_owned()
-            });
+        let s = StatefulSink::new(|s: &RefCell<u32>, item| {
+            let mut value = s.borrow_mut();
+            *value += item;
+            value.to_owned()
+        });
 
         assert_eq!(10, s.handle(10));
         assert_eq!(30, s.handle(20));

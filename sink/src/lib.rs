@@ -1,5 +1,4 @@
 #![feature(associated_type_defaults)]
-
 // Support using this library without the standard library
 #![cfg_attr(not(feature = "std"), no_std)]
 // #[no_std]
@@ -96,14 +95,21 @@ mod lib {
     pub use self::core::ops::RangeInclusive;
 }
 
-mod sinkmap;
+pub mod echo;
+pub mod map;
+pub mod reflect;
 
 pub mod isink;
+// pub mod iasyncsink;
+
 pub mod sink;
 
-pub mod echosink;
+// pub mod echosink;
 pub mod statefulsink;
 pub mod vecsink;
 
 pub use self::isink::*;
-pub use self::sinkmap::*;
+// pub use self::iasyncsink::*;
+pub use self::echo::*;
+pub use self::map::*;
+pub use self::reflect::*;

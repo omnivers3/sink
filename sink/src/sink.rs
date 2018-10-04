@@ -35,10 +35,7 @@ where
     type TInput = TInput;
     type TResult = TResult;
 
-    fn handle(
-        &self,
-        input: <Self as ISink>::TInput,
-    ) -> <Self as ISink>::TResult {
+    fn handle(&self, input: <Self as ISink>::TInput) -> <Self as ISink>::TResult {
         (self.handler)(input)
     }
 }
