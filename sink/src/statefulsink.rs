@@ -1,5 +1,4 @@
 use lib::core::marker::PhantomData;
-
 use super::*;
 
 /// Sink implementation which owns an internal state that is made available to
@@ -66,34 +65,29 @@ impl<T> IntoStatefulSink for T where T: Clone {}
 #[cfg(test)]
 mod statefulsink_tests {
     use super::*;
-
     use std::cell::RefCell;
 
     #[test]
     fn should_handle_single_item_to_statefulsink() {
-        let sink = StatefulSink::new(|_state: &(), _item| ());
-
-        sink.handle(());
+        let s = StatefulSink::new(|_state: &(), _item| ());
+        s.handle(());
     }
 
     #[test]
     fn should_handle_multiple_items_to_statefulsink() {
-        let sink = StatefulSink::new(|_state: &(), _item| ());
-
-        sink.handle(());
-        sink.handle(());
+        let s = StatefulSink::new(|_state: &(), _item| ());
+        s.handle(());
+        s.handle(());
     }
 
     #[test]
     fn should_update_state_on_handle_given_mutable_type() {
         let initial = RefCell::new(10);
-
         let s = StatefulSink::with_state(&initial, |s, item| {
             let mut value = s.borrow_mut();
             *value += item;
             value.to_owned()
         });
-
         assert_eq!(20, s.handle(10));
         assert_eq!(40, s.handle(20));
     }
@@ -105,7 +99,6 @@ mod statefulsink_tests {
             *value += item;
             value.to_owned()
         });
-
         assert_eq!(10, s.handle(10));
         assert_eq!(30, s.handle(20));
     }
@@ -117,7 +110,6 @@ mod statefulsink_tests {
             *value += item;
             value.to_owned()
         });
-
         assert_eq!(20, s.handle(10));
         assert_eq!(40, s.handle(20));
     }

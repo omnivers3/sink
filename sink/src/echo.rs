@@ -1,5 +1,4 @@
 use lib::core::marker::PhantomData;
-
 use super::*;
 
 pub struct Echo<TInput, TResult, TSink>
@@ -59,16 +58,15 @@ mod echo_tests {
     fn should_explicitly_construct() {
         let s = Sink::new(|i: &str| i.len());
         let s = Echo::new(s);
-
         assert_eq!("", s.handle(""));
         assert_eq!("some text", s.handle("some text"));
     }
 
     #[test]
     fn should_construct_through_the_map_function() {
-        let sink = Sink::new(|i: u32| i * i);
-        assert_eq!(100, sink.handle(10));
-        let sink = sink.echo();
-        assert_eq!(10, sink.handle(10));
+        let s = Sink::new(|i: u32| i * i);
+        assert_eq!(100, s.handle(10));
+        let s = s.echo();
+        assert_eq!(10, s.handle(10));
     }
 }

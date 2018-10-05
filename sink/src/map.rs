@@ -1,5 +1,4 @@
 use lib::core::marker::PhantomData;
-
 use super::*;
 
 /// Map transforms incomming data from source type to the type epxected by the wrapped ISink.
@@ -80,7 +79,6 @@ mod sinkmap_tests {
     fn should_explicitly_construct() {
         let s = Sink::new(|item| item);
         let s = Map::new(s, |item: &'static str| item.len());
-
         assert_eq!(0, s.handle(""));
         assert_eq!(9, s.handle("some text"));
     }
@@ -89,7 +87,6 @@ mod sinkmap_tests {
     fn should_construct_through_the_map_function() {
         let s = Sink::new(|item: usize| item);
         let s = s.map(|item: &'static str| item.len());
-
         assert_eq!(0, s.handle(""));
         assert_eq!(9, s.handle("some text"));
     }

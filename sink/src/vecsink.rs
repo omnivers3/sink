@@ -42,7 +42,6 @@ where
 {
     type TInput = TInput;
     type TResult = Result<usize, Error>;
-    // type TError = Error;
 
     fn handle(&self, input: Self::TInput) -> Self::TResult {
         self.push(input)
@@ -55,7 +54,6 @@ where
 {
     type TInput = TInput;
     type TResult = Result<usize, Error>;
-    // type TError = Error;
 
     fn handle(&self, input: Self::TInput) -> Self::TResult {
         self.push(input)
@@ -69,17 +67,14 @@ mod vecsink_tests {
     #[test]
     fn should_populate_vecsink_with_handled_message() {
         let sink = VecSink::new();
-
         sink.handle(10).unwrap();
         sink.handle(20).unwrap();
-
         assert_eq!(vec![10, 20], sink.data());
     }
 
     #[test]
     fn should_return_data_index_as_result_handle() {
         let sink = VecSink::new();
-
         assert_eq!(0, sink.handle(10).unwrap());
         assert_eq!(1, sink.handle(20).unwrap());
     }

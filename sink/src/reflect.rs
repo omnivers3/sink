@@ -1,5 +1,4 @@
 use lib::core::marker::PhantomData;
-
 use super::*;
 
 pub struct Reflect<TInput, TResult, TSink>
@@ -60,16 +59,15 @@ mod reflect_tests {
     fn should_explicitly_construct() {
         let s = Sink::new(|i: &str| i.len());
         let s = Reflect::new(s);
-
         assert_eq!(("", 0), s.handle(""));
         assert_eq!(("some text", 9), s.handle("some text"));
     }
 
     #[test]
     fn should_construct_through_the_map_function() {
-        let sink = Sink::new(|i: u32| i * i);
-        assert_eq!(100, sink.handle(10));
-        let sink = sink.reflect();
-        assert_eq!((10, 100), sink.handle(10));
+        let s = Sink::new(|i: u32| i * i);
+        assert_eq!(100, s.handle(10));
+        let s = s.reflect();
+        assert_eq!((10, 100), s.handle(10));
     }
 }
