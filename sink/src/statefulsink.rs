@@ -63,25 +63,25 @@ where
 impl<T> IntoStatefulSink for T where T: Clone {}
 
 #[cfg(test)]
-mod statefulsink_tests {
+mod should {
     use super::*;
     use std::cell::RefCell;
 
     #[test]
-    fn should_handle_single_item_to_statefulsink() {
+    fn handle_single_item() {
         let s = StatefulSink::new(|_state: &(), _item| ());
         s.handle(());
     }
 
     #[test]
-    fn should_handle_multiple_items_to_statefulsink() {
+    fn handle_multiple_items() {
         let s = StatefulSink::new(|_state: &(), _item| ());
         s.handle(());
         s.handle(());
     }
 
     #[test]
-    fn should_update_state_on_handle_given_mutable_type() {
+    fn update_state_on_handle_given_mutable_type() {
         let initial = RefCell::new(10);
         let s = StatefulSink::with_state(&initial, |s, item| {
             let mut value = s.borrow_mut();
@@ -93,7 +93,7 @@ mod statefulsink_tests {
     }
 
     #[test]
-    fn should_update_state_on_handle_given_defaulted_mutable_type() {
+    fn update_state_on_handle_given_defaulted_mutable_type() {
         let s = StatefulSink::new(|s: &RefCell<u32>, item| {
             let mut value = s.borrow_mut();
             *value += item;
@@ -104,7 +104,7 @@ mod statefulsink_tests {
     }
 
     #[test]
-    fn should_convert_into_and_update_state_on_handle_given_defaulted_mutable_type() {
+    fn mutate_contained_state_after_into_sink() {
         let s = RefCell::<u32>::new(10).into_sink(|state, item| {
             let mut value = state.borrow_mut();
             *value += item;

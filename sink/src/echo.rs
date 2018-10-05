@@ -50,12 +50,12 @@ where
 }
 
 #[cfg(test)]
-mod echo_tests {
+mod should {
     use super::sink::Sink;
     use super::*;
 
     #[test]
-    fn should_explicitly_construct() {
+    fn explicitly_construct() {
         let s = Sink::new(|i: &str| i.len());
         let s = Echo::new(s);
         assert_eq!("", s.handle(""));
@@ -63,7 +63,7 @@ mod echo_tests {
     }
 
     #[test]
-    fn should_construct_through_the_map_function() {
+    fn construct_through_the_map_function() {
         let s = Sink::new(|i: u32| i * i);
         assert_eq!(100, s.handle(10));
         let s = s.echo();

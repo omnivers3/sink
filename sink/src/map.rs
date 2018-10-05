@@ -71,12 +71,12 @@ where
 }
 
 #[cfg(test)]
-mod sinkmap_tests {
+mod should {
     use super::sink::*;
     use super::*;
 
     #[test]
-    fn should_explicitly_construct() {
+    fn explicitly_construct() {
         let s = Sink::new(|item| item);
         let s = Map::new(s, |item: &'static str| item.len());
         assert_eq!(0, s.handle(""));
@@ -84,7 +84,7 @@ mod sinkmap_tests {
     }
 
     #[test]
-    fn should_construct_through_the_map_function() {
+    fn construct_through_the_map_function() {
         let s = Sink::new(|item: usize| item);
         let s = s.map(|item: &'static str| item.len());
         assert_eq!(0, s.handle(""));

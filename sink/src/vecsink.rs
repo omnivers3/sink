@@ -61,11 +61,11 @@ where
 }
 
 #[cfg(test)]
-mod vecsink_tests {
+mod should {
     use super::*;
 
     #[test]
-    fn should_populate_vecsink_with_handled_message() {
+    fn populate_vecsink_with_handled_message() {
         let sink = VecSink::new();
         sink.handle(10).unwrap();
         sink.handle(20).unwrap();
@@ -73,7 +73,7 @@ mod vecsink_tests {
     }
 
     #[test]
-    fn should_return_data_index_as_result_handle() {
+    fn return_data_index_as_result_handle() {
         let sink = VecSink::new();
         assert_eq!(0, sink.handle(10).unwrap());
         assert_eq!(1, sink.handle(20).unwrap());
