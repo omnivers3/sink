@@ -23,23 +23,33 @@ pub trait ISource {
     fn next(&self) -> Self::TOutput;
 }
 
-pub trait IContext<TInput, TOutput, TOutputResult>
-where
-    Self: ISink<TInput=TOutput, TResult=TOutputResult>,
-    Self: ISource<TOutput=TInput>,
-{}
-
-pub trait ISystem {
+pub trait IService {
     type TInput;
     type TOutput;
-    type TResult;
     type THandle;
 
-    fn bind(ctx: impl IContext<Self::TInput, Self::TOutput, Self::TResult>) -> Self::THandle;
+    fn run(rx: Self::TInput, tx: Self::TOutput) -> Self::THandle;
 }
 
-impl<TInput, TOutput, TOutputResult, T> IContext<TInput, TOutput, TOutputResult> for T
-where
-    T: ISource<TOutput=TInput>,
-    T: ISink<TInput=TOutput, TResult=TOutputResult>,
-{}
+// pub trait IContext<TInput, TOutput, TOutputResult>
+// where
+//     Self: ISink<TInput=TOutput, TResult=TOutputResult>,
+//     Self: ISource<TOutput=TInput>,
+// {}
+
+// pub trait ISystem {
+//     type TInput;
+//     type TOutput;
+//     type TResult;
+//     type THandle;
+
+//     fn bind(ctx: impl IContext<Self::TInput, Self::TOutput, Self::TResult>) -> Self::THandle;
+// }
+
+
+
+// impl<TInput, TOutput, TOutputResult, T> IContext<TInput, TOutput, TOutputResult> for T
+// where
+//     T: ISource<TOutput=TInput>,
+//     T: ISink<TInput=TOutput, TResult=TOutputResult>,
+// {}

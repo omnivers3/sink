@@ -12,7 +12,7 @@ description = """
 categories = ["cqrs"]
 
 [dependencies]
-sink = { path = "../sink/sink" }
+sink = { path = "../sink" }
 env_logger = "0.5.12"
 log = "0.4.3"
 tiny_http = "0.6"

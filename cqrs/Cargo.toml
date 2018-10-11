@@ -16,7 +16,7 @@ inbound params to the familiar imperitive Result 'and_then' composition pattern.
 categories = ["cqrs"]
 
 [dependencies]
-sink = { path = "../../sink/sink" }
+sink = { path = "../sink" }
 
 [badges]
 circle-ci = { repository = "omnivers3/sink/sink", branch = "master" }

@@ -18,7 +18,7 @@ impl<T> IdentitySystemHandle<T> {
     pub fn shutdown(self) {
         println!("Terminated Identity System");
     }
-}6
+}
 
 #[derive(Debug)]
 pub struct IdentitySystem<T> {
