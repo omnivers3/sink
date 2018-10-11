@@ -1,3 +1,14 @@
+
+pub enum ReadyStates {
+    Failed,
+    Pending,
+    Ready,
+}
+
+pub trait IInitializable {
+    
+}
+
 /// ISource
 pub trait ISource {
     type TOutput;

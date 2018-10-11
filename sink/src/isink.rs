@@ -9,10 +9,37 @@
 /// the potential for failure and encapsulate both sync and async processing.
 pub trait ISink {
     type TInput;
-    type TResult = ();
+    type TResult;
 
     /// `handle` accepts an item returning either a result, potentially unit, to the
     /// sender.  In practice the TResult can itself represent a more complex concept
     /// such as a Result<T,E>, a process handle or array index.
-    fn handle(&self, event: Self::TInput) -> Self::TResult;
+    fn handle(&self, input: Self::TInput) -> Self::TResult;
 }
+
+pub trait ISource {
+    type TOutput;
+
+    fn next(&self) -> Self::TOutput;
+}
+
+pub trait IContext<TInput, TOutput, TOutputResult>
+where
+    Self: ISink<TInput=TOutput, TResult=TOutputResult>,
+    Self: ISource<TOutput=TInput>,
+{}
+
+pub trait ISystem {
+    type TInput;
+    type TOutput;
+    type TResult;
+    type THandle;
+
+    fn bind(ctx: impl IContext<Self::TInput, Self::TOutput, Self::TResult>) -> Self::THandle;
+}
+
+impl<TInput, TOutput, TOutputResult, T> IContext<TInput, TOutput, TOutputResult> for T
+where
+    T: ISource<TOutput=TInput>,
+    T: ISink<TInput=TOutput, TResult=TOutputResult>,
+{}

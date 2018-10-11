@@ -1,0 +1,43 @@
+[package]
+name = "system"
+version = "0.1.0"
+authors = ["Perry Birch <perrybirch@vizidrix.com>"]
+license = "MIT"
+readme = "README.md"
+keywords = ["omnivers3", "system", "sink"]
+repository = "https://github.com/omnivers3/sink/sink"
+include = ["Cargo.toml", "build.rs", "src/**/*.rs", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+description = """
+Composable unit of sinks and sources.
+"""
+categories = ["streaming"]
+
+[badges]
+circle-ci = { repository = "omnivers3/sink/system", branch = "master" }
+
+### FEATURES #################################################################
+
+[features]
+default = ["std"]
+
+# Provide impls for common standard library types like Vec<T> and HashMap<K, V>.
+# Requires a dependency on the Rust standard library.
+std = []
+
+# Provide impls for types that require unstable functionality. For tracking and
+# discussion of unstable functionality please refer to this issue:
+#
+#    https://github.com/serde-rs/serde/issues/812
+unstable = []
+
+# Provide impls for types in the Rust core allocation and collections library
+# including String, Box<T>, Vec<T>, and Cow<T>. This is a subset of std but may
+# be enabled without depending on all of std.
+#
+# Requires a dependency on the unstable core allocation library:
+#
+#    https://doc.rust-lang.org/alloc/
+alloc = ["unstable"]
+
+[dependencies]
+sink = { path = "../sink" }
