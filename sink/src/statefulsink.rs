@@ -43,7 +43,7 @@ where
     type TInput = TInput;
     type TResult = TResult;
 
-    fn handle(&self, input: <Self as ISink>::TInput) -> <Self as ISink>::TResult {
+    fn send(&self, input: <Self as ISink>::TInput) -> <Self as ISink>::TResult {
         (self.handler)(&self.state, input)
     }
 }
@@ -70,14 +70,14 @@ mod should {
     #[test]
     fn handle_single_item() {
         let s = StatefulSink::new(|_state: &(), _item| ());
-        s.handle(());
+        s.send(());
     }
 
     #[test]
     fn handle_multiple_items() {
         let s = StatefulSink::new(|_state: &(), _item| ());
-        s.handle(());
-        s.handle(());
+        s.send(());
+        s.send(());
     }
 
     #[test]
@@ -88,8 +88,8 @@ mod should {
             *value += item;
             value.to_owned()
         });
-        assert_eq!(20, s.handle(10));
-        assert_eq!(40, s.handle(20));
+        assert_eq!(20, s.send(10));
+        assert_eq!(40, s.send(20));
     }
 
     #[test]
@@ -99,8 +99,8 @@ mod should {
             *value += item;
             value.to_owned()
         });
-        assert_eq!(10, s.handle(10));
-        assert_eq!(30, s.handle(20));
+        assert_eq!(10, s.send(10));
+        assert_eq!(30, s.send(20));
     }
 
     #[test]
@@ -110,7 +110,7 @@ mod should {
             *value += item;
             value.to_owned()
         });
-        assert_eq!(20, s.handle(10));
-        assert_eq!(40, s.handle(20));
+        assert_eq!(20, s.send(10));
+        assert_eq!(40, s.send(20));
     }
 }

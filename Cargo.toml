@@ -2,5 +2,6 @@
 members = [
     "cqrs",
     "httpserver",
+    "tcpserver",
     "sink",
 ]

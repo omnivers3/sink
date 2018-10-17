@@ -2,7 +2,6 @@
 extern crate log;
 extern crate env_logger;
 extern crate sink;
-// extern crate tiny_http;
 
 mod lib;
 
@@ -47,14 +46,13 @@ fn parse_ipaddr(ip: String, port: String) -> Result<SocketAddr, SocketAddrParseE
 
 pub struct EnvProvider {
     server_config: ServerConfig,
-    // addr: SocketAddr,
 }
 
 impl EnvProvider {
     pub fn new() -> Result<Self, SocketAddrParseError> {
         ENV_PROVIDER_INITIALIZE.call_once(|| {
             if env::var("RUST_LOG").is_err() {
-                env::set_var("RUST_LOG", "info");
+                env::set_var("RUST_LOG", "debug");
             }
             env_logger::init();
         });
@@ -65,18 +63,9 @@ impl EnvProvider {
             .map(ServerConfig::new)
             .map(|server_config| {
                 EnvProvider {
-                    server_config
+                    server_config,
                 }
             })
-        // ServerConfig::new(
-        //     env_or("HOST_ADDR", "0.0.0.0"),
-        //     env_or("HOST_PORT", "8080")
-        // )
-        //     .map(|server_config| {
-        //         EnvProvider {
-        //             server_config
-        //         }
-        //     })
     }
 }
 
@@ -86,7 +75,7 @@ impl ISink for CommandSink {
     type TInput = Commands;
     type TResult = Result<u32, ()>;
 
-    fn handle(&self, input: Self::TInput) -> Self::TResult {
+    fn send(&self, input: Self::TInput) -> Self::TResult {
         info!("Got command: {:?}", input);
         match input {
             Commands::SetValue (value) => {
@@ -102,7 +91,7 @@ impl ISink for ServerSink {
     type TInput = ServerEvents<Commands>;
     type TResult = Result<u32, ()>;
 
-    fn handle(&self, input: Self::TInput) -> Self::TResult {
+    fn send(&self, input: Self::TInput) -> Self::TResult {
         info!("Got server event: {:?}", input);
         match input {
             ServerEvents::CommandReceived(command) => {
@@ -135,38 +124,3 @@ fn main() {
     }
     
 }
-
-// impl ISystem for Server {
-//     type TInput = ServerConfig;
-//     type TOutput = Commands;
-//     type TResult = Result<u32, ()>;
-//     type THandle = Result<u32, ServerErrors>;
-
-//     fn bind(ctx: impl IContext<Self::TInput, Self::TOutput, Self::TResult>) -> Self::THandle {
-//         let config = ctx.next();
-//         let address = config.address();
-//         info!("Starting server @ {:?}", address);
-
-//         let mut request_index = 0;
-        
-
-//         server
-//             .map(|server| {
-//                 info!("Server running...");
-//                 for mut request in server.incoming_requests() {
-//                     request_index += 1;
-//                     info!("Got Request Index: [{:?}]:\t{:?}\n", request_index, request);
-
-//                     let send_result = ctx.handle(Commands::SetValue(request_index));
-
-//                     let response = format!("Request Index: [{:?}] with result [{:?}]", request_index, send_result);
-
-//                     let response = tiny_http::Response::from_string(response);
-
-//                     request.respond(response).unwrap();
-//                 }
-//                 request_index
-//             })
-//             .map_err(|_| ServerErrors::FailedToBind (config.addr))
-//     }
-// }

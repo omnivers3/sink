@@ -29,8 +29,8 @@ where
     type TInput = TInput;
     type TResult = (TInput, TResult);
 
-    fn handle(&self, input: <Self as ISink>::TInput) -> <Self as ISink>::TResult {
-        (input.clone(), self.target.handle(input))
+    fn send(&self, input: <Self as ISink>::TInput) -> <Self as ISink>::TResult {
+        (input.clone(), self.target.send(input))
     }
 }
 
@@ -59,15 +59,15 @@ mod should {
     fn explicitly_construct() {
         let s = Sink::new(|i: &str| i.len());
         let s = Reflect::new(s);
-        assert_eq!(("", 0), s.handle(""));
-        assert_eq!(("some text", 9), s.handle("some text"));
+        assert_eq!(("", 0), s.send(""));
+        assert_eq!(("some text", 9), s.send("some text"));
     }
 
     #[test]
     fn construct_through_the_map_function() {
         let s = Sink::new(|i: u32| i * i);
-        assert_eq!(100, s.handle(10));
+        assert_eq!(100, s.send(10));
         let s = s.reflect();
-        assert_eq!((10, 100), s.handle(10));
+        assert_eq!((10, 100), s.send(10));
     }
 }

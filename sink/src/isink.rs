@@ -1,4 +1,4 @@
-/// The ISink trait aims to provide an abstraction for a thing which can handle values
+/// The ISink trait aims to provide an abstraction for a thing which can receive values
 /// and return the result of each event's receipt along with a handle to, potentially,
 /// observe outcome, status and/or value per the Sink type.
 ///
@@ -11,10 +11,10 @@ pub trait ISink {
     type TInput;
     type TResult;
 
-    /// `handle` accepts an item returning either a result, potentially unit, to the
+    /// `send` accepts an item returning either a result, potentially unit, to the
     /// sender.  In practice the TResult can itself represent a more complex concept
     /// such as a Result<T,E>, a process handle or array index.
-    fn handle(&self, input: Self::TInput) -> Self::TResult;
+    fn send(&self, input: Self::TInput) -> Self::TResult;
 }
 
 pub trait ISource {
@@ -24,12 +24,22 @@ pub trait ISource {
 }
 
 pub trait IService {
-    type TInput;
-    type TOutput;
-    type THandle;
+    type TContext;
 
-    fn run(rx: Self::TInput, tx: Self::TOutput) -> Self::THandle;
+    fn bind(self, ctx: Self::TContext);
 }
+
+pub trait IContext {
+    type T;
+}
+
+// pub trait IService {
+//     type TInput;
+//     type TOutput;
+//     type THandle;
+
+//     fn run(rx: Self::TInput, tx: Self::TOutput) -> Self::THandle;
+// }
 
 // pub trait IContext<TInput, TOutput, TOutputResult>
 // where

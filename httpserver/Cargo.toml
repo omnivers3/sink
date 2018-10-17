@@ -13,6 +13,7 @@ categories = ["cqrs"]
 
 [dependencies]
 sink = { path = "../sink" }
+tcp_server = { path = "../tcpserver" }
 env_logger = "0.5.12"
 log = "0.4.3"
 tiny_http = "0.6"

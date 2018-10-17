@@ -19,7 +19,7 @@ pub trait IAsyncSink<'a> {
     type TResult;
 
     // fn handle(&'a self, input: Self::TInput) -> &'a IAsyncContext<TResult=Self::TResult>;
-    fn handle(&self, input: Self::TInput) -> &'a IAsyncContext<TResult=Self::TResult>;
+    fn send(&self, input: Self::TInput) -> &'a IAsyncContext<TResult=Self::TResult>;
 }
 
 pub struct Immediate<TInput, TResult>
@@ -60,7 +60,7 @@ where
     type TInput = TInput;
     type TResult = TResult;
 
-    fn handle(&self, input: Self::TInput) -> &'a IAsyncContext<TResult=TResult> {
+    fn send(&self, input: Self::TInput) -> &'a IAsyncContext<TResult=TResult> {
     // fn handle(&self, input: Self::TInput) -> Immediate<TInput, TResult> {
         // (*self as IAsyncContext)
         self
@@ -105,7 +105,7 @@ mod asyncsink_tests {
         let world = World::
         let s = Sink::new(|_: ()| ());
         let a = s.async(Immediate::new(10));
-        let ctx = a.handle(());
+        let ctx = a.send(());
         let r = ctx.poll();
 
         // let s: Immediate<_, _> = s.async();
