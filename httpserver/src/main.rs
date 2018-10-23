@@ -7,12 +7,12 @@ mod lib;
 
 use std::env;
 use std::net::{AddrParseError, SocketAddr};
-use std::num::{ParseIntError};
+use std::num::ParseIntError;
 use std::sync::Once;
 
 use sink::*;
 
-use lib::{ Commands, LoggingEvents, Server, ServerConfig, ServerEvents };
+use lib::{Commands, LoggingEvents, Server, ServerConfig, ServerEvents};
 
 static ENV_PROVIDER_INITIALIZE: Once = Once::new();
 
@@ -26,9 +26,9 @@ where
 
 #[derive(Debug)]
 pub enum SocketAddrParseError {
-    AddrParseError (AddrParseError),
-    PortParseError (ParseIntError),
-    HostAddressInUse (SocketAddr),
+    AddrParseError(AddrParseError),
+    PortParseError(ParseIntError),
+    HostAddressInUse(SocketAddr),
 }
 
 fn parse_ipaddr(ip: String, port: String) -> Result<SocketAddr, SocketAddrParseError> {
@@ -38,9 +38,7 @@ fn parse_ipaddr(ip: String, port: String) -> Result<SocketAddr, SocketAddrParseE
         .and_then(|ip| {
             port.parse()
                 .map_err(SocketAddrParseError::PortParseError)
-                .map(|port| {
-                    SocketAddr::new(ip, port)
-                })
+                .map(|port| SocketAddr::new(ip, port))
         })
 }
 
@@ -56,16 +54,9 @@ impl EnvProvider {
             }
             env_logger::init();
         });
-        parse_ipaddr(
-            env_or("HOST_ADDR", "0.0.0.0"),
-            env_or("HOST_PORT", "8080")
-        )
+        parse_ipaddr(env_or("HOST_ADDR", "0.0.0.0"), env_or("HOST_PORT", "8080"))
             .map(ServerConfig::new)
-            .map(|server_config| {
-                EnvProvider {
-                    server_config,
-                }
-            })
+            .map(|server_config| EnvProvider { server_config })
     }
 }
 
@@ -78,9 +69,7 @@ impl ISink for CommandSink {
     fn send(&self, input: Self::TInput) -> Self::TResult {
         info!("Got command: {:?}", input);
         match input {
-            Commands::SetValue (value) => {
-                Ok (value)
-            }
+            Commands::SetValue(value) => Ok(value),
         }
     }
 }
@@ -96,15 +85,15 @@ impl ISink for ServerSink {
         match input {
             ServerEvents::CommandReceived(command) => {
                 info!("Got command: {:?}", command);
-                Ok (42)
-            },
+                Ok(42)
+            }
             ServerEvents::LogEmitted(log) => {
                 match log {
-                    LoggingEvents::Error (msg) => error!("{}", msg),
-                    LoggingEvents::Info (msg) => info!("{}", msg),
-                    LoggingEvents::Warning (msg) => warn!("{}", msg),
+                    LoggingEvents::Error(msg) => error!("{}", msg),
+                    LoggingEvents::Info(msg) => info!("{}", msg),
+                    LoggingEvents::Warning(msg) => warn!("{}", msg),
                 };
-                Ok (0)
+                Ok(0)
             }
         }
     }
@@ -112,15 +101,10 @@ impl ISink for ServerSink {
 
 fn main() {
     match EnvProvider::new() {
-        Ok (provider) => {
-            match Server::run(provider.server_config, ServerSink{}) {
-                Ok (result) => info!("Server terminated successfully: {:?}", result),
-                Err (err) => error!("Server runtime error: {:?}", err),
-            }
+        Ok(provider) => match Server::run(provider.server_config, ServerSink {}) {
+            Ok(result) => info!("Server terminated successfully: {:?}", result),
+            Err(err) => error!("Server runtime error: {:?}", err),
         },
-        Err (err) => {
-            error!("Server binding error: {:?}", err)
-        }
+        Err(err) => error!("Server binding error: {:?}", err),
     }
-    
 }

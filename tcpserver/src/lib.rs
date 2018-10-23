@@ -1,15 +1,16 @@
-pub mod log;
+pub mod component;
 pub mod env;
+pub mod log;
 pub mod net;
 
 extern crate env_logger;
 extern crate sink;
 
 use std::io;
-use std::marker::{PhantomData};
+// use std::marker::PhantomData;
 // use std::net::{ TcpListener, ToSocketAddrs };
-use std::net::{ AddrParseError, TcpListener, SocketAddr };
-use std::num::{ParseIntError};
+use std::net::{AddrParseError, SocketAddr, TcpListener};
+use std::num::ParseIntError;
 
 // use env_logger::{init};
 // use env::*;
@@ -19,42 +20,36 @@ pub trait IConfigProvider {
     fn get(&mut self, key: &'static str) -> Option<String>;
 }
 
-use Commands::*;
+// use Commands::*;
 #[derive(Debug)]
 pub enum Commands {
-    Bind (SocketAddr),
+    Bind(SocketAddr),
 }
 
-use Events::*;
+// use Events::*;
 #[derive(Debug)]
 pub enum Events {
-    Listening (TcpListener, SocketAddr),
+    Listening(TcpListener, SocketAddr),
     // Logging (LoggingEvents),
 }
 
-
 #[derive(Debug)]
 pub enum SocketAddrParseError {
-    AddrParseError (AddrParseError),
-    PortParseError (ParseIntError),
-    HostAddressInUse (SocketAddr),
+    AddrParseError(AddrParseError),
+    PortParseError(ParseIntError),
+    HostAddressInUse(SocketAddr),
 }
 
-use Errors::*;
+// use Errors::*;
 #[derive(Debug)]
 pub enum Errors {
-    IoError (io::Error),
-    ParseError (SocketAddrParseError),
+    IoError(io::Error),
+    ParseError(SocketAddrParseError),
 }
 
-pub trait ITcpServerSink:
-    ISink<TInput=Commands, TResult=Result<Events, Errors>>
-{}
+pub trait ITcpServerSink: ISink<TInput = Commands, TResult = Result<Events, Errors>> {}
 
-impl<T> ITcpServerSink for T
-where
-    T: ISink<TInput=Commands, TResult=Result<Events, Errors>>
-{}
+impl<T> ITcpServerSink for T where T: ISink<TInput = Commands, TResult = Result<Events, Errors>> {}
 
 // pub struct Server<TServer, TLogging> {
 //     // ctx: (),

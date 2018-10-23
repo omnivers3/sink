@@ -22,14 +22,12 @@ pub enum Events {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Errors {
-    OutOfBounds (u32),
+    OutOfBounds(u32),
 }
 
 impl Aggregate {
     pub fn new(limit: u32) -> Self {
-        Aggregate {
-            limit,
-        }
+        Aggregate { limit }
     }
 
     fn apply(&self, state: &mut State, event: Events) {
@@ -47,9 +45,9 @@ impl Aggregate {
         match command {
             Commands::Increment => {
                 if state.value == self.limit {
-                    Err ( Errors::OutOfBounds (self.limit) )
+                    Err(Errors::OutOfBounds(self.limit))
                 } else {
-                    Ok ( Events::Incremented )
+                    Ok(Events::Incremented)
                 }
             }
         }
@@ -101,15 +99,11 @@ impl IAggregateMeta for Aggregate {
     }
 
     fn commands() -> Vec<String> {
-        vec![
-            "increment".to_owned(),
-        ]
+        vec!["increment".to_owned()]
     }
 
     fn events() -> Vec<String> {
-        vec![
-            "incremented".to_owned(),
-        ]
+        vec!["incremented".to_owned()]
     }
 }
 

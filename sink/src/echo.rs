@@ -1,5 +1,5 @@
-use lib::core::marker::PhantomData;
 use super::*;
+use lib::core::marker::PhantomData;
 
 pub struct Echo<TInput, TResult, TSink>
 where
@@ -42,7 +42,7 @@ where
 
 impl<TInput, TResult, TSink> IEcho<TInput, TResult, TSink> for TSink
 where
-    Self: ISink<TInput = TInput, TResult = TResult>
+    Self: ISink<TInput = TInput, TResult = TResult>,
 {
     fn echo(self) -> Echo<TInput, TResult, TSink> {
         Echo::new(self)

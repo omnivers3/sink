@@ -1,5 +1,5 @@
-use lib::core::marker::PhantomData;
 use super::*;
+use lib::core::marker::PhantomData;
 
 /// Sink is a simple struct which captures a provided handler function and routes
 /// dispatched data into that handler

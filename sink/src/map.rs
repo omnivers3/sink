@@ -1,5 +1,5 @@
-use lib::core::marker::PhantomData;
 use super::*;
+use lib::core::marker::PhantomData;
 
 /// Map transforms incomming data from source type to the type epxected by the wrapped ISink.
 pub struct Map<FMap, TInput, UInput, TResult, TSink>

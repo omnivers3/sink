@@ -1,5 +1,5 @@
-use lib::core::marker::PhantomData;
 use super::*;
+use lib::core::marker::PhantomData;
 
 /// Sink implementation which owns an internal state that is made available to
 /// the provided handler when values are sent to it

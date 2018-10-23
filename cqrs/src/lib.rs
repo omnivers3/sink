@@ -123,7 +123,11 @@ pub trait IAggregate {
     type TErrors;
 
     fn apply(&self, state: &mut Self::TState, event: Self::TEvents);
-    fn eval(&self, state: Self::TState, command: Self::TCommands) -> Result<Self::TEvents, Self::TErrors>;
+    fn eval(
+        &self,
+        state: Self::TState,
+        command: Self::TCommands,
+    ) -> Result<Self::TEvents, Self::TErrors>;
 }
 
 pub trait IAggregateMeta {
@@ -133,12 +137,12 @@ pub trait IAggregateMeta {
 }
 
 pub enum AggregateCommands<TIdentity, TVersion, TState, TCommands, TEvents> {
-    HandleCommand (TIdentity, TVersion, TState, TCommands),
-    LoadEvents (TIdentity),
-    LoadState (TIdentity, Vec<TEvents>),
+    HandleCommand(TIdentity, TVersion, TState, TCommands),
+    LoadEvents(TIdentity),
+    LoadState(TIdentity, Vec<TEvents>),
 }
 
 pub enum AggregateEvents<TIdentity, TVersion, TCommands, TEvents, TErrors> {
-    DispatchEvent (TIdentity, TVersion, TEvents),
-    DispatchError (TIdentity, TVersion, TCommands, TErrors),
+    DispatchEvent(TIdentity, TVersion, TEvents),
+    DispatchError(TIdentity, TVersion, TCommands, TErrors),
 }

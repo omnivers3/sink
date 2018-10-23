@@ -1,8 +1,8 @@
 use std::env;
 use std::sync::Once;
 
+use super::IConfigProvider;
 use env_logger;
-use super::{ IConfigProvider };
 
 static ENV_PROVIDER_INITIALIZE: Once = Once::new();
 static RUST_LOG: &'static str = "RUST_LOG";

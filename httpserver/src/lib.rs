@@ -4,12 +4,22 @@ extern crate tiny_http;
 use self::sink::*;
 
 use std::io;
-use std::marker::{PhantomData};
-use std::net::{SocketAddr};
+use std::marker::PhantomData;
+use std::net::SocketAddr;
+
+
+#[derive(Debug)]
+pub enum ServerError {
+    AddrParseError(AddrParseError),
+    IoError(io::Error),
+    PortParseError(ParseIntError),
+    // TcpListenerSink (tcp_listener::SinkErrors),
+    UnexpectedErr(&'static str),
+}
 
 #[derive(Debug)]
 pub enum Commands {
-    SetValue (u32),
+    SetValue(u32),
 }
 
 #[derive(Clone)]
@@ -23,9 +33,7 @@ impl ServerConfig {
     }
 
     pub fn new(addr: SocketAddr) -> Self {
-        ServerConfig {
-            addr,
-        }
+        ServerConfig { addr }
     }
 }
 
@@ -37,22 +45,22 @@ pub struct ServerState {
 
 #[derive(Debug)]
 pub enum LoggingEvents {
-    Error (String),
-    Info (String),
-    Warning (String),
+    Error(String),
+    Info(String),
+    Warning(String),
 }
 
 #[derive(Debug)]
 pub enum ServerEvents<TCommand> {
-    CommandReceived (TCommand),
-    LogEmitted (LoggingEvents),
+    CommandReceived(TCommand),
+    LogEmitted(LoggingEvents),
 }
 
 #[derive(Debug)]
 pub enum ServerErrors {
     CommandHandler,
-    FailedToBind (SocketAddr),
-    IoError (io::Error),
+    FailedToBind(SocketAddr),
+    IoError(io::Error),
 }
 
 pub struct Server<TInput, TOutput> {
@@ -61,12 +69,12 @@ pub struct Server<TInput, TOutput> {
 }
 
 fn parse_request(state: &ServerState, _request: &mut tiny_http::Request) -> Result<Commands, ()> {
-    Ok (Commands::SetValue(state.count))
+    Ok(Commands::SetValue(state.count))
 }
 
 impl<TOutput> IService for Server<ServerConfig, TOutput>
 where
-    TOutput: ISink<TInput=ServerEvents<Commands>, TResult=Result<u32, ()>>,
+    TOutput: ISink<TInput = ServerEvents<Commands>, TResult = Result<u32, ()>>,
 {
     type TInput = ServerConfig;
     type TOutput = TOutput;
@@ -79,7 +87,7 @@ where
             errors: Vec::new(),
         };
         // info!("\nStarting server @ {:?}\n- {:?}", address, state);
-        
+
         tiny_http::Server::http(address)
             .map(|server| {
                 for mut request in server.incoming_requests() {
@@ -92,16 +100,13 @@ where
                         .map(tiny_http::Response::from_string)
                         .map_err(|_| ServerErrors::CommandHandler)
                         .and_then(|response| {
-                            request
-                                .respond(response)
-                                .map_err(ServerErrors::IoError)
+                            request.respond(response).map_err(ServerErrors::IoError)
                         });
-                    if let Err (err) = result {
+                    if let Err(err) = result {
                         state.errors.push(err);
                     }
                 }
                 state
-            })
-            .map_err(|_| ServerErrors::FailedToBind (ctx.addr))
+            }).map_err(|_| ServerErrors::FailedToBind(ctx.addr))
     }
 }

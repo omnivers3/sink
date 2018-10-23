@@ -1,5 +1,5 @@
-use lib::core::marker::PhantomData;
 use super::*;
+use lib::core::marker::PhantomData;
 
 pub struct Reflect<TInput, TResult, TSink>
 where
@@ -43,7 +43,7 @@ where
 
 impl<TInput, TResult, TSink> IReflect<TInput, TResult, TSink> for TSink
 where
-    Self: ISink<TInput = TInput, TResult = TResult>
+    Self: ISink<TInput = TInput, TResult = TResult>,
 {
     fn reflect(self) -> Reflect<TInput, TResult, TSink> {
         Reflect::new(self)

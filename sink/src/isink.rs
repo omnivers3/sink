@@ -56,8 +56,6 @@ pub trait IContext {
 //     fn bind(ctx: impl IContext<Self::TInput, Self::TOutput, Self::TResult>) -> Self::THandle;
 // }
 
-
-
 // impl<TInput, TOutput, TOutputResult, T> IContext<TInput, TOutput, TOutputResult> for T
 // where
 //     T: ISource<TOutput=TInput>,
