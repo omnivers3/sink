@@ -1,109 +1,24 @@
+//! [TcpListener](https://doc.rust-lang.org/std/net/struct.TcpListener.html)
+
+use socket_addrs::*;
+use component::{ IAggregate, IInitialized };
 use std::io;
-use std::net::{ IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, TcpListener, TcpStream, ToSocketAddrs };
-use std::vec;
-use component::IComponent;
+use std::net::{ SocketAddr, TcpListener, TcpStream, ToSocketAddrs };
 
-#[derive(Debug)]
-pub enum ContextErrors {
-    IoError(io::Error),
-}
-
-#[derive(Clone, Debug)]
-pub enum SocketAddrs {
-    FromAddr(SocketAddr),
-    FromAddrV4(SocketAddrV4),
-    FromAddrV6(SocketAddrV6),
-    FromIpPort((IpAddr, u16)),
-    FromIpV4Port((Ipv4Addr, u16)),
-    FromIpV6Port((Ipv6Addr, u16)),
-    List(Vec<SocketAddrs>),
-}
-
-impl SocketAddrs {
-    pub fn from<I: Iterator<Item = SocketAddr>, T: ToSocketAddrs<Iter = I>>(
-        src: T,
-    ) -> Result<Self, io::Error> {
-        src.to_socket_addrs().map(|mut addrs| {
-            match (
-                addrs.next().map(SocketAddrs::FromAddr),
-                addrs.next().map(SocketAddrs::FromAddr)
-            ) {
-                (None, _) => SocketAddrs::List(Vec::new()),
-                (Some (first), None) => first,
-                (Some (first), Some (second)) => {
-                    let mut result = vec![first, second];
-                    for addr in addrs {
-                        result.push(SocketAddrs::FromAddr(addr));
-                    }
-                    SocketAddrs::List(result)
-                }
-            }
-            // if let Some(first) = addrs.next() {
-            //     let first = SocketAddrs::FromAddr(first);
-            //     if let Some(second) = addrs.next() {
-            //         let mut result = vec![first, SocketAddrs::FromAddr(second)];
-            //         for addr in addrs {
-            //             result.push(SocketAddrs::FromAddr(addr));
-            //         }
-            //         SocketAddrs::List(result)
-            //     } else {
-            //         first
-            //     }
-            // } else {
-            //     SocketAddrs::List(Vec::new())
-            // }
-        })
-    }
-
-    fn to_vec(self) -> Vec<SocketAddr> {
-        let mut result = Vec::new();
-        match self {
-            SocketAddrs::FromAddr(t) => result.push(t),
-            SocketAddrs::FromAddrV4(t) => result.push(t.into()),
-            SocketAddrs::FromAddrV6(t) => result.push(t.into()),
-            SocketAddrs::FromIpPort(t) => result.push(t.into()),
-            SocketAddrs::FromIpV4Port(t) => result.push(t.into()),
-            SocketAddrs::FromIpV6Port(t) => result.push(t.into()),
-            SocketAddrs::List(l) => {
-                for i in l {
-                    if let Ok(addrs) = i.to_socket_addrs() {
-                        for j in addrs {
-                            result.push(j);
-                        }
-                    }
-                }
-            }
-        }
-        result
-    }
-}
-
-impl From<SocketAddrs> for Vec<SocketAddr> {
-    fn from(addrs: SocketAddrs) -> Vec<SocketAddr> {
-        addrs.to_vec()
-    }
-}
-
-impl<'a> From<&'a SocketAddrs> for Vec<SocketAddr> {
-    fn from(addrs: &SocketAddrs) -> Vec<SocketAddr> {
-        addrs.into()
-    }
-}
-
-impl ToSocketAddrs for SocketAddrs {
-    type Iter = vec::IntoIter<SocketAddr>;
-
-    fn to_socket_addrs(&self) -> io::Result<vec::IntoIter<SocketAddr>> {
-        println!("ToSocketAddrs: {:?}", self);
-        let addrs: Vec<SocketAddr> = self.to_owned().to_vec();
-        Ok(addrs.into_iter())
-    }
-}
+pub type Ttl = u32;
 
 #[derive(Debug)]
 pub enum Commands {
+    /// Blocks the harness thread until a connection arrives
     Accept,
+    /// Binds the listener to the provider address if it is not already bound
     BindAddresses(SocketAddrs),
+    /// Attempts to create a clone of the listener
+    CloneListener,
+    /// Changes the blocking model for the listener
+    SetNonBlocking(bool),
+    /// This value sets the time-to-live field that is used in every packet sent from this socket
+    SetTtl(Ttl),
 }
 
 impl Commands {
@@ -123,71 +38,142 @@ impl<I: Iterator<Item = SocketAddr>, T: ToSocketAddrs<Iter=I>> From<T> for Comma
 
 #[derive(Debug)]
 pub enum Events {
-    SocketBound(TcpListener),
+    /// A client connection was established to the internal listener
     ConnectionEstablished(TcpStream, SocketAddr),
+    /// Internal listener handle was cloned
+    ListenerCloned(TcpListener),
+    /// The blocking model for the listener has been modified
+    NonBlockingSet(bool),
+    /// Socket was opened with the provided listener handle
+    SocketBound(TcpListener),
+    /// Time-to-live field for every packet was set to the specified value
+    TtlSet(Ttl),
 }
 
 #[derive(Debug)]
 pub enum Errors {
     AcceptFailed(io::Error),
     BindFailed(io::Error),
+    CloneFailed(io::Error),
+    SetNonBlockingFailed(io::Error),
+    SetTtlFailed(io::Error),
     SocketAlreadyBound,
+    /// Results from a non-empty call to take_error on the listener between calls
+    SocketError (String),
     SocketNotBound,
     StateUpdateFailed,
+    TtlFailed(io::Error),
+}
+
+#[derive(Debug)]
+pub struct State {
+    blocking: bool,
+    listener: TcpListener,
 }
 
 #[derive(Debug)]
 pub struct Component {
+    blocking: bool,
     listener: Option<TcpListener>,
-}
-
-impl Component {
-    pub fn new(listener: TcpListener) -> Self {
-        Component {
-            listener: Some(listener),
-        }
-    }
+    ttl: Option<u32>,
 }
 
 impl Default for Component {
     fn default() -> Self {
         Component {
+            blocking: true,
             listener: None,
+            ttl: None,
         }
     }
 }
 
-impl IComponent for Component {
+impl IInitialized for Component {
+    type TState = State;
+
+    fn apply(&mut self, state: State) {
+        let ttl = state.listener.ttl().ok();
+        self.blocking = state.blocking;
+        self.listener = Some(state.listener);
+        self.ttl = ttl;
+    }
+}
+
+impl IAggregate for Component {
     type TCommands = Commands;
     type TEvents = Events;
     type TErrors = Errors;
 
     fn update(&mut self, event: Self::TEvents) {
         match event {
-            Events::SocketBound(listener) => self.listener = Some(listener),
-            Events::ConnectionEstablished(_, addr) => {
-                println!("connection established: {:?}", addr);
+            Events::SocketBound(listener) => 
+                self.listener = Some(listener),
+            Events::ConnectionEstablished(socket, addr) => {
+                // self.send(Debug(format!("Connection was established: {:?} - {:?}", socket, addr)));
+                debug!("Connection was established: {:?} - {:?}", socket, addr);
+            }
+            Events::ListenerCloned(_) => {
+                // self.send(Debug(format!("Listener cloned")));
+                debug!("Listener cloned");
+            }
+            Events::NonBlockingSet(value) => {
+                // self.send(Debug(format!("NonBlocking set to {:?}", value)));
+                 debug!("NonBlocking set to {:?}", value);
+                // self.handle = value;
+                self.blocking = value;
+            }
+            Events::TtlSet(ttl) => {
+                self.ttl = Some(ttl);
             }
         }
     }
 
     fn handle(&self, command: Self::TCommands) -> Result<Self::TEvents, Self::TErrors> {
         match command {
-            Commands::BindAddresses(addr) => {
-                if let Some(_) = self.listener {
-                    return Err(Errors::SocketAlreadyBound);
+            Commands::Accept =>
+                match &self.listener {
+                    None => Err(Errors::SocketNotBound),
+                    Some(listener) => {
+                        let (stream, addr) = listener.accept().map_err(Errors::AcceptFailed)?;
+                        Ok(Events::ConnectionEstablished(stream, addr))
+                    }
                 }
-                let listener = TcpListener::bind(addr).map_err(Errors::BindFailed)?;
-                Ok(Events::SocketBound(listener))
-            }
-            Commands::Accept => match &self.listener {
-                None => Err(Errors::SocketNotBound),
-                Some(listener) => {
-                    println!("Accept");
-                    let (stream, addr) = listener.accept().map_err(Errors::AcceptFailed)?;
-                    println!("Got stream: {:?} - {:?}", stream, addr);
-                    Ok(Events::ConnectionEstablished(stream, addr))
+            Commands::BindAddresses(addr) =>
+                match &self.listener {
+                    Some(_) => Err(Errors::SocketAlreadyBound),
+                    None => TcpListener::bind(addr)
+                        .map_err(Errors::BindFailed)
+                        .map(Events::SocketBound)
                 }
+            Commands::CloneListener =>
+                match &self.listener {
+                    None => Err(Errors::SocketNotBound),
+                    Some(listener) => {
+                        listener
+                            .try_clone()
+                            .map_err(Errors::CloneFailed)
+                            .map(Events::ListenerCloned)
+                    }
+                }
+            Commands::SetNonBlocking(value) =>
+                match &self.listener {
+                    None => Err(Errors::SocketNotBound),
+                    Some(listener) => {
+                        listener
+                            .set_nonblocking(value)
+                            .map_err(Errors::SetNonBlockingFailed)
+                            .map(|_| Events::NonBlockingSet(value))
+                    }
+                }
+            Commands::SetTtl(ttl) =>
+                match &self.listener {
+                    None => Err(Errors::SocketNotBound),
+                    Some(listener) => {
+                        listener
+                            .set_ttl(ttl)
+                            .map_err(Errors::SetTtlFailed)
+                            .map(|_| Events::TtlSet(ttl))
+                    }
             }
         }
     }

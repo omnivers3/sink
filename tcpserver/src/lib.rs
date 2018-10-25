@@ -1,20 +1,19 @@
-pub mod component;
-pub mod env;
-pub mod log;
-pub mod net;
-
+#[macro_use]
+extern crate log;
 extern crate env_logger;
 extern crate sink;
 
+pub mod component;
+// pub mod log;
+pub mod env;
+pub mod net;
+pub mod server;
+pub mod socket_addrs;
+
+use sink::*;
 use std::io;
-// use std::marker::PhantomData;
-// use std::net::{ TcpListener, ToSocketAddrs };
 use std::net::{AddrParseError, SocketAddr, TcpListener};
 use std::num::ParseIntError;
-
-// use env_logger::{init};
-// use env::*;
-use sink::*;
 
 pub trait IConfigProvider {
     fn get(&mut self, key: &'static str) -> Option<String>;
