@@ -1,5 +1,5 @@
 use std::io;
-use std::net::{ IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs };
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 use std::vec;
 
 #[derive(Clone, Debug)]
@@ -20,11 +20,11 @@ impl SocketAddrs {
         src.to_socket_addrs().map(|mut addrs| {
             match (
                 addrs.next().map(SocketAddrs::FromAddr),
-                addrs.next().map(SocketAddrs::FromAddr)
+                addrs.next().map(SocketAddrs::FromAddr),
             ) {
                 (None, _) => SocketAddrs::List(Vec::new()),
-                (Some (first), None) => first,
-                (Some (first), Some (second)) => {
+                (Some(first), None) => first,
+                (Some(first), Some(second)) => {
                     let mut result = vec![first, second];
                     for addr in addrs {
                         result.push(SocketAddrs::FromAddr(addr));

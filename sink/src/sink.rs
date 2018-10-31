@@ -1,92 +1,78 @@
-use super::*;
-use lib::core::marker::PhantomData;
+/// The ISink trait aims to provide an abstraction for a thing which can receive values
+/// and return the result of each event's receipt along with a handle to, potentially,
+/// observe outcome, status and/or value per the Sink type.
+///
+/// As a base primitive this should enable a message oriented variant of the inbound
+/// params to the familiar imperitive Result 'and_then' composition pattern.
+///
+/// Immediately responding to handle with TResult enables implementations to represent
+/// the potential for failure and encapsulate both sync and async processing.
+pub trait Sink {
+    type TInput;
+    type TResult;
 
-/// Sink is a simple struct which captures a provided handler function and routes
-/// dispatched data into that handler
-pub struct Sink<FHandler, TInput, TResult>
+    /// `send` accepts an item returning either a result, potentially unit, to the
+    /// sender.  In practice the TResult can itself represent a more complex concept
+    /// such as a Result<T,E>, a process handle or array index.
+    fn send(&self, input: Self::TInput) -> Self::TResult;
+}
+
+pub trait Dispatcher<TInput, TResult> {
+    fn dispatch(&self, TInput) -> TResult;
+}
+
+impl<TSink, TInput, TResult> Dispatcher<TInput, TResult> for TSink
 where
-    FHandler: Fn(TInput) -> TResult,
+    TSink: Sink<TInput = TInput, TResult = TResult>,
 {
-    handler: FHandler,
-    _input: PhantomData<TInput>,
-}
-
-impl<FHandler, TInput, TResult> Sink<FHandler, TInput, TResult>
-where
-    FHandler: Fn(TInput) -> TResult,
-{
-    /// Builds a Sink using the provided handler
-    pub fn new(handler: FHandler) -> Self
-    where
-        FHandler: Fn(TInput) -> TResult,
-    {
-        Sink {
-            handler,
-            _input: PhantomData,
-        }
+    fn dispatch(&self, input: TInput) -> TResult {
+        self.send(input)
     }
 }
 
-impl<FHandler, TInput, TResult> ISink for Sink<FHandler, TInput, TResult>
-where
-    FHandler: Fn(TInput) -> TResult,
-{
-    type TInput = TInput;
-    type TResult = TResult;
+pub trait Source {
+    type TOutput;
 
-    fn send(&self, input: <Self as ISink>::TInput) -> <Self as ISink>::TResult {
-        (self.handler)(input)
-    }
+    fn next(&self) -> Self::TOutput;
 }
 
-#[cfg(test)]
-mod should {
-    use super::*;
+pub trait Initializable: Default {
+    type TState;
 
-    #[test]
-    fn handle_single_unit_item_dispatched_to_sink() {
-        let s = Sink::new(|_item| ());
-        assert_eq!((), s.send(()));
+    fn init(state: Self::TState) -> Self {
+        let mut default = Self::default();
+        default.apply(state);
+        default
     }
 
-    #[test]
-    fn handle_multiple_unit_items_dispatched_to_sink() {
-        let s = Sink::new(|_item| ());
-        assert_eq!((), s.send(()));
-        assert_eq!((), s.send(()));
-    }
-
-    #[test]
-    fn echo_single_u32_item_dispatched_to_sink() {
-        let s = Sink::new(|item: u32| item);
-        assert_eq!(10, s.send(10));
-    }
-
-    #[test]
-    fn echo_multiple_u32_items_dispatched_to_sink() {
-        let s = Sink::new(|item: u32| item);
-        assert_eq!(10, s.send(10));
-        assert_eq!(20, s.send(20));
-    }
-
-    #[derive(Clone, Debug, Eq, PartialEq)]
-    struct TestStruct {
-        value: &'static str,
-    }
-
-    #[test]
-    fn handle_single_struct_item_dispatched_to_sink() {
-        let expected = TestStruct { value: "test" };
-        let s = Sink::new(|item| item);
-        assert_eq!(expected.clone(), s.send(expected));
-    }
-
-    #[test]
-    fn handle_multiple_struct_items_dispatched_to_sink() {
-        let expected1 = TestStruct { value: "test1" };
-        let expected2 = TestStruct { value: "test2" };
-        let s = Sink::new(|item| item);
-        assert_eq!(expected1.clone(), s.send(expected1));
-        assert_eq!(expected2.clone(), s.send(expected2));
-    }
+    fn apply(&mut self, state: Self::TState);
 }
+
+// pub trait IService {
+//     type TInput;
+//     type TOutput;
+//     type THandle;
+
+//     fn run(rx: Self::TInput, tx: Self::TOutput) -> Self::THandle;
+// }
+
+// pub trait IContext<TInput, TOutput, TOutputResult>
+// where
+//     Self: ISink<TInput=TOutput, TResult=TOutputResult>,
+//     Self: ISource<TOutput=TInput>,
+// {}
+
+// pub trait ISystem {
+//     type TInput;
+//     type TOutput;
+//     type TResult;
+//     type THandle;
+
+//     fn bind(ctx: impl IContext<Self::TInput, Self::TOutput, Self::TResult>) -> Self::THandle;
+// }
+
+// impl<TInput, TOutput, TOutputResult, T> IContext<TInput, TOutput, TOutputResult> for T
+// where
+//     T: ISource<TOutput=TInput>,
+//     T: ISink<TInput=TOutput, TResult=TOutputResult>,
+// {}

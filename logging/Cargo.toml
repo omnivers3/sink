@@ -1,0 +1,16 @@
+[package]
+name = "logging"
+version = "0.1.0"
+authors = ["Perry Birch <perrybirch@vizidrix.com>"]
+license = "MIT"
+readme = "README.md"
+keywords = ["omnivers3", "cqrs", "logging"]
+repository = "https://github.com/omnivers3/logging"
+include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+description = """
+"""
+categories = ["cqrs"]
+
+[dependencies]
+log = "0.4.6"
+sink = { path = "../sink" }

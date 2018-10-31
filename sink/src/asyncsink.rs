@@ -8,13 +8,13 @@ pub enum AsyncStatus<TResult> {
     Ready(TResult),
 }
 
-pub trait IAsyncContext {
+pub trait AsyncContext {
     type TResult;
 
     fn poll(self) -> AsyncStatus<Self::TResult>;
 }
 
-pub trait IAsyncSink<'a> {
+pub trait AsyncSink<'a> {
     type TInput;
     type TResult;
 
@@ -42,7 +42,7 @@ where
     }
 }
 
-impl<TInput, TResult> IAsyncContext for Immediate<TInput, TResult>
+impl<TInput, TResult> AsyncContext for Immediate<TInput, TResult>
 where
     TResult: Clone,
 {
@@ -53,7 +53,7 @@ where
     }
 }
 
-impl<'a, TInput, TResult> IAsyncSink<'a> for Immediate<TInput, TResult>
+impl<'a, TInput, TResult> AsyncSink<'a> for Immediate<TInput, TResult>
 where
     TResult: Clone,
 {
@@ -76,7 +76,7 @@ pub trait IntoAsync {
     type TResult;
 
     // fn async<T>(self, IAsyncSink<TInput=Self::TInput, TResult=Self::TResult>) -> T where T: &'a IAsyncSink<TInput=Self::TInput, TResult=Self::TResult> + Default;
-    fn async<T>(self, IAsyncSink<TInput=Self::TInput, TResult=Self::TResult>) -> AsyncSink;
+    fn async<T>(self, AsyncSink<TInput=Self::TInput, TResult=Self::TResult>) -> AsyncSink;
 }
 
 impl<TSink, TInput, TResult> IntoAsync for TSink
@@ -89,7 +89,7 @@ where
 
     fn async<T>(self, ) -> T
     where
-        T: IAsyncSink<TInput=TInput, TResult=TResult> + Default
+        T: AsyncSink<TInput=TInput, TResult=TResult> + Default
     {
         T::default()
     }
@@ -103,7 +103,7 @@ mod asyncsink_tests {
     #[test]
     fn should_wrap_sink_with_async() {
         let world = World::
-        let s = Sink::new(|_: ()| ());
+        let s = FnSink::new(|_: ()| ());
         let a = s.async(Immediate::new(10));
         let ctx = a.send(());
         let r = ctx.poll();

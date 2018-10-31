@@ -1,70 +1,71 @@
 use super::*;
 use lib::core::marker::PhantomData;
 
-pub struct Echo<TInput, TResult, TSink>
+pub struct EchoSink<TInput, TResult, TSink>
 where
-    TSink: ISink<TInput = TInput, TResult = TResult> + Sized,
+    TSink: Sink<TInput = TInput, TResult = TResult> + Sized,
 {
     _target: PhantomData<TSink>,
     _input: PhantomData<TInput>,
 }
 
-impl<TInput, TResult, TSink> Echo<TInput, TResult, TSink>
+impl<TInput, TResult, TSink> EchoSink<TInput, TResult, TSink>
 where
-    TSink: ISink<TInput = TInput, TResult = TResult> + Sized,
+    TSink: Sink<TInput = TInput, TResult = TResult> + Sized,
 {
     pub fn new(_target: TSink) -> Self {
-        Echo {
+        EchoSink {
             _target: PhantomData,
             _input: PhantomData,
         }
     }
 }
 
-impl<TInput, TResult, TSink> ISink for Echo<TInput, TResult, TSink>
+impl<TInput, TResult, TSink> Sink for EchoSink<TInput, TResult, TSink>
 where
-    TSink: ISink<TInput = TInput, TResult = TResult>,
+    TSink: Sink<TInput = TInput, TResult = TResult>,
 {
     type TInput = TInput;
     type TResult = TInput;
 
-    fn send(&self, input: <Self as ISink>::TInput) -> <Self as ISink>::TInput {
+    fn send(&self, input: <Self as Sink>::TInput) -> <Self as Sink>::TInput {
         input
     }
 }
 
 pub trait IEcho<TInput, TResult, TSink>
 where
-    TSink: ISink<TInput = TInput, TResult = TResult>,
+    TSink: Sink<TInput = TInput, TResult = TResult>,
 {
-    fn echo(self) -> Echo<TInput, TResult, TSink>;
+    fn echo(self) -> EchoSink<TInput, TResult, TSink>;
 }
 
 impl<TInput, TResult, TSink> IEcho<TInput, TResult, TSink> for TSink
 where
-    Self: ISink<TInput = TInput, TResult = TResult>,
+    Self: Sink<TInput = TInput, TResult = TResult>,
 {
-    fn echo(self) -> Echo<TInput, TResult, TSink> {
-        Echo::new(self)
+    fn echo(self) -> EchoSink<TInput, TResult, TSink> {
+        EchoSink::new(self)
     }
 }
 
 #[cfg(test)]
 mod should {
+    use super::fnsink::FnSink;
     use super::sink::Sink;
     use super::*;
 
     #[test]
     fn explicitly_construct() {
-        let s = Sink::new(|i: &str| i.len());
-        let s = Echo::new(s);
+        let s = FnSink::new(|i: &str| i.len());
+        let s = EchoSink::new(s);
         assert_eq!("", s.send(""));
         assert_eq!("some text", s.send("some text"));
     }
 
     #[test]
     fn construct_through_the_map_function() {
-        let s = Sink::new(|i: u32| i * i);
+        let s = FnSink::new(|i: u32| i * i);
         assert_eq!(100, s.send(10));
         let s = s.echo();
         assert_eq!(10, s.send(10));

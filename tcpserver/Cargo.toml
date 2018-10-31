@@ -12,18 +12,19 @@ description = """
 categories = ["cqrs"]
 
 [dependencies]
-ascii = "0.8"
-chrono = "0.4"
-chunked_transfer = "0.3"
-encoding = "0.2"
-env_logger = "0.5.12"
-log = "0.4.3"
+ascii = "0.9.1"
+chrono = "0.4.6"
+chunked_transfer = "0.3.1"
+encoding = "0.2.33"
+env_logger = "0.5.13"
+log = "0.4.6"
+url = "1.7.1"
+logging = { path = "../logging" }
 sink = { path = "../sink" }
-url = "1.7"
 
 
 [dev-dependencies]
-rustc-serialize = "0.3"
+rustc-serialize = "0.3.24"
 sha1 = "0.6.0"
 
 [[bin]]

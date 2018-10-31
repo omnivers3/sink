@@ -1,9 +1,14 @@
 //! [TcpListener](https://doc.rust-lang.org/std/net/struct.TcpListener.html)
 
-use socket_addrs::*;
-use component::{ IAggregate, IInitialized };
 use std::io;
-use std::net::{ SocketAddr, TcpListener, TcpStream, ToSocketAddrs };
+use std::io::{BufRead, BufReader, Write};
+use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs};
+use std::str::from_utf8;
+// use std::thread;
+
+use component::AggregateRoot;
+use sink::Initializable;
+use socket_addrs::*;
 
 pub type Ttl = u32;
 
@@ -22,16 +27,17 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub fn bind_addresses<I: Iterator<Item = SocketAddr>, T: ToSocketAddrs<Iter=I>>(addrs: T) -> Self {
+    pub fn bind_addresses<I: Iterator<Item = SocketAddr>, T: ToSocketAddrs<Iter = I>>(
+        addrs: T,
+    ) -> Self {
         addrs.into()
     }
 }
 
-impl<I: Iterator<Item = SocketAddr>, T: ToSocketAddrs<Iter=I>> From<T> for Commands {
+impl<I: Iterator<Item = SocketAddr>, T: ToSocketAddrs<Iter = I>> From<T> for Commands {
     fn from(src: T) -> Self {
         Commands::BindAddresses(
-            SocketAddrs::from(src)
-                .unwrap_or_else(|_| SocketAddrs::List(Vec::new()))
+            SocketAddrs::from(src).unwrap_or_else(|_| SocketAddrs::List(Vec::new())),
         )
     }
 }
@@ -59,7 +65,7 @@ pub enum Errors {
     SetTtlFailed(io::Error),
     SocketAlreadyBound,
     /// Results from a non-empty call to take_error on the listener between calls
-    SocketError (String),
+    SocketError(String),
     SocketNotBound,
     StateUpdateFailed,
     TtlFailed(io::Error),
@@ -76,6 +82,7 @@ pub struct Component {
     blocking: bool,
     listener: Option<TcpListener>,
     ttl: Option<u32>,
+    buffer: Vec<u8>,
 }
 
 impl Default for Component {
@@ -84,11 +91,12 @@ impl Default for Component {
             blocking: true,
             listener: None,
             ttl: None,
+            buffer: Vec::with_capacity(2048),
         }
     }
 }
 
-impl IInitialized for Component {
+impl Initializable for Component {
     type TState = State;
 
     fn apply(&mut self, state: State) {
@@ -99,27 +107,44 @@ impl IInitialized for Component {
     }
 }
 
-impl IAggregate for Component {
+impl AggregateRoot for Component {
     type TCommands = Commands;
     type TEvents = Events;
     type TErrors = Errors;
 
     fn update(&mut self, event: Self::TEvents) {
         match event {
-            Events::SocketBound(listener) => 
-                self.listener = Some(listener),
-            Events::ConnectionEstablished(socket, addr) => {
-                // self.send(Debug(format!("Connection was established: {:?} - {:?}", socket, addr)));
-                debug!("Connection was established: {:?} - {:?}", socket, addr);
+            Events::SocketBound(listener) => self.listener = Some(listener),
+            Events::ConnectionEstablished(mut socket, _addr) => {
+                // thread::spawn(move || {
+                {
+                    let mut reader = BufReader::new(&socket);
+                    // let mut buff = Vec::new();
+                    let mut read_bytes = reader.read_until(b'\n', &mut self.buffer).unwrap();
+                    while read_bytes > 0 {
+                        read_bytes = reader.read_until(b'\n', &mut self.buffer).unwrap();
+                        if read_bytes == 2 && &self.buffer[(self.buffer.len() - 2)..] == b"\r\n" {
+                            break;
+                        }
+                    }
+                    warn!("\n{:?}\n", from_utf8(self.buffer.as_slice()).unwrap());
+                }
+                self.buffer = Vec::with_capacity(2048);
+                // return buff;
+                // let mut buffer = String::default();
+                // let len = socket.read_to_string(&mut buffer);
+                // warn!("Got data [{:?}]: {:?}", len, buffer);
+                // let response = b"HTTP/1.1 202 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n<html><body>Hello world</body></html>\r\n";
+                let response = b"HTTP/1.1 202 OK\r\nContent-Length=20\r\nETag=47feba42\r\n";
+                let result = socket.write(response).expect("Write failed");
+                warn!("Result: {:?}", result);
+                // });
+                // warn!("Connection was established: {:?} - {:?}", socket, addr);
             }
-            Events::ListenerCloned(_) => {
-                // self.send(Debug(format!("Listener cloned")));
-                debug!("Listener cloned");
+            Events::ListenerCloned(_listener) => {
+                // warn!("Listener cloned");
             }
             Events::NonBlockingSet(value) => {
-                // self.send(Debug(format!("NonBlocking set to {:?}", value)));
-                 debug!("NonBlocking set to {:?}", value);
-                // self.handle = value;
                 self.blocking = value;
             }
             Events::TtlSet(ttl) => {
@@ -130,51 +155,40 @@ impl IAggregate for Component {
 
     fn handle(&self, command: Self::TCommands) -> Result<Self::TEvents, Self::TErrors> {
         match command {
-            Commands::Accept =>
-                match &self.listener {
-                    None => Err(Errors::SocketNotBound),
-                    Some(listener) => {
-                        let (stream, addr) = listener.accept().map_err(Errors::AcceptFailed)?;
-                        Ok(Events::ConnectionEstablished(stream, addr))
-                    }
+            Commands::Accept => match &self.listener {
+                None => Err(Errors::SocketNotBound),
+                Some(listener) => {
+                    let (stream, addr) = listener.accept().map_err(Errors::AcceptFailed)?;
+                    Ok(Events::ConnectionEstablished(stream, addr))
                 }
-            Commands::BindAddresses(addr) =>
-                match &self.listener {
-                    Some(_) => Err(Errors::SocketAlreadyBound),
-                    None => TcpListener::bind(addr)
-                        .map_err(Errors::BindFailed)
-                        .map(Events::SocketBound)
-                }
-            Commands::CloneListener =>
-                match &self.listener {
-                    None => Err(Errors::SocketNotBound),
-                    Some(listener) => {
-                        listener
-                            .try_clone()
-                            .map_err(Errors::CloneFailed)
-                            .map(Events::ListenerCloned)
-                    }
-                }
-            Commands::SetNonBlocking(value) =>
-                match &self.listener {
-                    None => Err(Errors::SocketNotBound),
-                    Some(listener) => {
-                        listener
-                            .set_nonblocking(value)
-                            .map_err(Errors::SetNonBlockingFailed)
-                            .map(|_| Events::NonBlockingSet(value))
-                    }
-                }
-            Commands::SetTtl(ttl) =>
-                match &self.listener {
-                    None => Err(Errors::SocketNotBound),
-                    Some(listener) => {
-                        listener
-                            .set_ttl(ttl)
-                            .map_err(Errors::SetTtlFailed)
-                            .map(|_| Events::TtlSet(ttl))
-                    }
-            }
+            },
+            Commands::BindAddresses(addr) => match &self.listener {
+                Some(_) => Err(Errors::SocketAlreadyBound),
+                None => TcpListener::bind(addr)
+                    .map_err(Errors::BindFailed)
+                    .map(Events::SocketBound),
+            },
+            Commands::CloneListener => match &self.listener {
+                None => Err(Errors::SocketNotBound),
+                Some(listener) => listener
+                    .try_clone()
+                    .map_err(Errors::CloneFailed)
+                    .map(Events::ListenerCloned),
+            },
+            Commands::SetNonBlocking(value) => match &self.listener {
+                None => Err(Errors::SocketNotBound),
+                Some(listener) => listener
+                    .set_nonblocking(value)
+                    .map_err(Errors::SetNonBlockingFailed)
+                    .map(|_| Events::NonBlockingSet(value)),
+            },
+            Commands::SetTtl(ttl) => match &self.listener {
+                None => Err(Errors::SocketNotBound),
+                Some(listener) => listener
+                    .set_ttl(ttl)
+                    .map_err(Errors::SetTtlFailed)
+                    .map(|_| Events::TtlSet(ttl)),
+            },
         }
     }
 }

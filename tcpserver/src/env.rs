@@ -6,7 +6,7 @@ use env_logger;
 
 static ENV_PROVIDER_INITIALIZE: Once = Once::new();
 static RUST_LOG: &'static str = "RUST_LOG";
-static DEFAULT_LOG_LEVEL: &'static str = "debug";
+static DEFAULT_LOG_LEVEL: &'static str = "trace";
 
 fn init_log() {
     ENV_PROVIDER_INITIALIZE.call_once(|| {

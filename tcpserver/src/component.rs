@@ -2,11 +2,15 @@ use std::cell::RefCell;
 use std::fmt;
 use std::marker::PhantomData;
 
+use logging::*;
 use sink::*;
-use log::*;
+
+pub trait Provider<TOutput> {
+    fn next(&self) -> TOutput;
+}
 
 /// An aggregate is a container which owns a source of truth or data set
-pub trait IAggregate {
+pub trait AggregateRoot {
     type TCommands;
     type TEvents;
     type TErrors;
@@ -15,79 +19,82 @@ pub trait IAggregate {
     fn handle(&self, command: Self::TCommands) -> Result<Self::TEvents, Self::TErrors>;
 }
 
-pub struct AggregateHarness<T, TCommands, TEvents, TErrors>
+pub struct SystemContext {}
+
+pub struct AggregateSystem<T, TContext, TCommands, TEvents, TErrors>
 where
-    T: IAggregate,
+    T: AggregateRoot,
 {
     _commands: PhantomData<TCommands>,
     _events: PhantomData<TEvents>,
     _errors: PhantomData<TErrors>,
+    context: TContext,
     aggregate: RefCell<T>,
 }
 
-impl<T, TCommands, TEvents, TErrors> AggregateHarness<T, TCommands, TEvents, TErrors>
+impl<T, TContext, TCommands, TEvents, TErrors>
+    AggregateSystem<T, TContext, TCommands, TEvents, TErrors>
 where
-    T: IAggregate + Default,
+    TContext: Sink<TInput = LoggingEvents, TResult = ()>,
+    T: AggregateRoot + Default,
 {
-    pub fn new() -> Self {
-        AggregateHarness {
+    pub fn new(context: TContext) -> Self {
+        AggregateSystem {
             _commands: PhantomData,
             _events: PhantomData,
             _errors: PhantomData,
+            context,
             aggregate: RefCell::<T>::default(),
         }
     }
 }
 
-impl<T, TCommands, TEvents, TErrors> ISink for AggregateHarness<T, TCommands, TEvents, TErrors>
+impl<T, TContext, TCommands, TEvents, TErrors> Sink
+    for AggregateSystem<T, TContext, TCommands, TEvents, TErrors>
 where
     TCommands: fmt::Debug,
     TEvents: fmt::Debug,
     TErrors: fmt::Debug,
-    T: IAggregate<TCommands=TCommands, TEvents=TEvents, TErrors=TErrors>
+    TContext: Dispatcher<LoggingEvents, ()>,
+    T: AggregateRoot<TCommands = TCommands, TEvents = TEvents, TErrors = TErrors>,
 {
     type TInput = TCommands;
     type TResult = ();
 
     fn send(&self, input: Self::TInput) -> Self::TResult {
         let mut aggregate = self.aggregate.borrow_mut();
-        debug!("Command: {:?}", input);
+        info!("Command: {:?}", input);
+        // self.context.dispatch(LoggingEvents::Trace(format!("Command: {:?}", input)));
         let result = aggregate.handle(input);
         match result {
-            Ok (event) => {
-                debug!("Event: {:?}", event);
+            Ok(event) => {
+                info!("Event: {:?}", event);
+                // self.context.dispatch(LoggingEvents::Trace(format!("Event: {:?}", event)));
                 aggregate.update(event);
             }
-            Err (err) => {
-                debug!("Error: {:?}", err);
+            Err(err) => {
+                error!("Error: {:?}", err);
+                // self.context.dispatch(LoggingEvents::Trace(format!("Error: {:?}", err)));
             }
         }
         ()
     }
 }
 
-pub trait IIntoHarness<T, TCommands, TEvents, TErrors>
+pub trait IntoSystem<T, TCommands, TEvents, TErrors>
 where
-    T: IAggregate<TCommands=TCommands, TEvents=TEvents, TErrors=TErrors> + Default
+    T: AggregateRoot<TCommands = TCommands, TEvents = TEvents, TErrors = TErrors> + Default,
 {
-    fn to_harness() -> AggregateHarness<T, TCommands, TEvents, TErrors> {
-        AggregateHarness::new()
+    fn to_system<TContext>(
+        context: TContext,
+    ) -> AggregateSystem<T, TContext, TCommands, TEvents, TErrors>
+    where
+        TContext: Sink<TInput = LoggingEvents, TResult = ()>,
+    {
+        AggregateSystem::new(context)
     }
 }
 
-impl<T, TCommands, TEvents, TErrors> IIntoHarness<T, TCommands, TEvents, TErrors> for T
-where
-    T: IAggregate<TCommands=TCommands, TEvents=TEvents, TErrors=TErrors> + Default
+impl<T, TCommands, TEvents, TErrors> IntoSystem<T, TCommands, TEvents, TErrors> for T where
+    T: AggregateRoot<TCommands = TCommands, TEvents = TEvents, TErrors = TErrors> + Default
 {}
-
-pub trait IInitialized: Default {
-    type TState;
-
-    fn init(state: Self::TState) -> Self {
-        let mut default = Self::default();
-        default.apply(state);
-        default
-    }
-
-    fn apply(&mut self, state: Self::TState);
-}

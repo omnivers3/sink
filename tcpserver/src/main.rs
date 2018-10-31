@@ -1,10 +1,11 @@
-// #[macro_use]
-// extern crate log;
+#[macro_use]
+extern crate log;
+extern crate logging;
 extern crate sink;
 extern crate tcp_server;
 
 use component::*;
-// use log::*;
+use logging::*;
 // use env::*;
 // use net::*;
 use sink::*;
@@ -37,7 +38,7 @@ impl CommandSource {
     }
 }
 
-impl ISource for CommandSource {
+impl Source for CommandSource {
     type TOutput = Option<AppCommands>;
 
     fn next(&self) -> Self::TOutput {
@@ -47,21 +48,43 @@ impl ISource for CommandSource {
     }
 }
 
-pub struct Context {}
+// #[derive(Clone)]
+// pub struct Context {}
 
-impl Context {
-    pub fn new() -> Self {
-        Context {}
-    }
-}
+// impl Sink for Context {
+//     type TInput = LoggingEvents;
+//     type TResult = ();
+
+//     fn send(&self, input: LoggingEvents) {
+//         match input {
+//             LoggingEvents::Debug(msg) => debug!("{}", msg),
+//             LoggingEvents::Info(msg) => info!("{}", msg),
+//             LoggingEvents::Error(msg) => error!("{}", msg),
+//             LoggingEvents::Trace(msg) => trace!("{}", msg),
+//             LoggingEvents::Warning(msg) => warn!("{}", msg),
+//         }
+//         // println!("Log: {:?}", input);
+//     }
+// }
+
+// impl Context {
+//     pub fn new() -> Self {
+//         Context {}
+//     }
+// }
 
 fn main() {
     env::EnvConfigProvider::new();
 
-    let context = Context::new();
-    let harness = server::Component::to_harness(context);
-    harness.send(server::Commands::Socket(net::Commands::bind_addresses("localhost:8080")));
-    harness.send(server::Commands::Socket(net::Commands::Accept));
+    // let context = Context::new();
+    let context = logging::Logging::new();
+    let harness = server::Component::to_system(context);
+    harness.send(server::Commands::Socket(net::Commands::bind_addresses(
+        "localhost:8080",
+    )));
+    loop {
+        harness.send(server::Commands::Socket(net::Commands::Accept));
+    }
 
     // let harness = net::Component::to_harness();
     // harness.send(net::Commands::bind_addresses("localhost:8080"));

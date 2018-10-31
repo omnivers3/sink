@@ -1,11 +1,15 @@
-#[macro_use]
-extern crate log;
+// #[macro_use]
+// extern crate log;
 extern crate env_logger;
+
+#[macro_use]
+extern crate logging;
 extern crate sink;
 
 pub mod component;
-// pub mod log;
+// pub mod logging;
 pub mod env;
+pub mod http;
 pub mod net;
 pub mod server;
 pub mod socket_addrs;
@@ -46,9 +50,9 @@ pub enum Errors {
     ParseError(SocketAddrParseError),
 }
 
-pub trait ITcpServerSink: ISink<TInput = Commands, TResult = Result<Events, Errors>> {}
+pub trait TcpServerSink: Sink<TInput = Commands, TResult = Result<Events, Errors>> {}
 
-impl<T> ITcpServerSink for T where T: ISink<TInput = Commands, TResult = Result<Events, Errors>> {}
+impl<T> TcpServerSink for T where T: Sink<TInput = Commands, TResult = Result<Events, Errors>> {}
 
 // pub struct Server<TServer, TLogging> {
 //     // ctx: (),
@@ -81,7 +85,7 @@ impl<T> ITcpServerSink for T where T: ISink<TInput = Commands, TResult = Result<
 //     }
 // }
 
-// impl<TServer, TLogging> ISink for Server<TServer, TLogging>
+// impl<TServer, TLogging> Sink for Server<TServer, TLogging>
 // where
 //     TServer: ILoggingSink,
 //     TLogging: ILoggingSink,

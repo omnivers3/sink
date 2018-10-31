@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "cqrs",
+    "logging",
     "httpserver",
     "tcpserver",
     "sink",

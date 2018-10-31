@@ -7,6 +7,23 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+pub mod fnsink;
+pub mod statefulsink;
+pub mod vecsink;
+
+// Traits to be root exported
+// pub mod asyncsink;
+pub mod echo;
+pub mod map;
+pub mod reflect;
+pub mod sink;
+
+// pub use self::asyncsink::*;
+pub use self::echo::*;
+pub use self::map::*;
+pub use self::reflect::*;
+pub use self::sink::*;
+
 /// A facade around all the types we need from the `std`, `core`, and `alloc`
 /// crates. This avoids elaborate import wrangling having to happen in every
 /// module.
@@ -94,22 +111,3 @@ mod lib {
     #[cfg(range_inclusive)]
     pub use self::core::ops::RangeInclusive;
 }
-
-pub mod echo;
-pub mod map;
-pub mod reflect;
-
-pub mod isink;
-// pub mod iasyncsink;
-
-pub mod sink;
-
-// pub mod echosink;
-pub mod statefulsink;
-pub mod vecsink;
-
-pub use self::isink::*;
-// pub use self::iasyncsink::*;
-pub use self::echo::*;
-pub use self::map::*;
-pub use self::reflect::*;

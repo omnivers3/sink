@@ -1,4 +1,4 @@
-use super::ISink;
+use sink::Sink;
 use std::cell::RefCell;
 
 #[derive(Debug)]
@@ -36,7 +36,7 @@ where
     }
 }
 
-impl<TInput> ISink for VecSink<TInput>
+impl<TInput> Sink for VecSink<TInput>
 where
     TInput: Clone,
 {
@@ -48,7 +48,7 @@ where
     }
 }
 
-impl<'a, TInput> ISink for &'a VecSink<TInput>
+impl<'a, TInput> Sink for &'a VecSink<TInput>
 where
     TInput: Clone,
 {

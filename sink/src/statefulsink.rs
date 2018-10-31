@@ -1,5 +1,5 @@
-use super::*;
 use lib::core::marker::PhantomData;
+use sink::Sink;
 
 /// Sink implementation which owns an internal state that is made available to
 /// the provided handler when values are sent to it
@@ -35,7 +35,7 @@ where
     }
 }
 
-impl<FHandler, TState, TInput, TResult> ISink for StatefulSink<FHandler, TState, TInput, TResult>
+impl<FHandler, TState, TInput, TResult> Sink for StatefulSink<FHandler, TState, TInput, TResult>
 where
     TState: Clone,
     FHandler: Fn(&TState, TInput) -> TResult,
@@ -43,7 +43,7 @@ where
     type TInput = TInput;
     type TResult = TResult;
 
-    fn send(&self, input: <Self as ISink>::TInput) -> <Self as ISink>::TResult {
+    fn send(&self, input: <Self as Sink>::TInput) -> <Self as Sink>::TResult {
         (self.handler)(&self.state, input)
     }
 }
