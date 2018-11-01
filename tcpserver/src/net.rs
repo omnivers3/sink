@@ -127,7 +127,7 @@ impl AggregateRoot for Component {
                             break;
                         }
                     }
-                    warn!("\n{:?}\n", from_utf8(self.buffer.as_slice()).unwrap());
+                    // warn!("\n{:?}\n", from_utf8(self.buffer.as_slice()).unwrap());
                 }
                 self.buffer = Vec::with_capacity(2048);
                 // return buff;
@@ -137,7 +137,7 @@ impl AggregateRoot for Component {
                 // let response = b"HTTP/1.1 202 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n<html><body>Hello world</body></html>\r\n";
                 let response = b"HTTP/1.1 202 OK\r\nContent-Length=20\r\nETag=47feba42\r\n";
                 let result = socket.write(response).expect("Write failed");
-                warn!("Result: {:?}", result);
+                // warn!("Result: {:?}", result);
                 // });
                 // warn!("Connection was established: {:?} - {:?}", socket, addr);
             }

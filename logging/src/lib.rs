@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate log;
 extern crate sink;
 
@@ -15,6 +14,18 @@ pub struct Data<'a> {
     module_path: Option<&'a str>,
     file: Option<&'a str>,
     line: Option<u32>,
+}
+
+impl<'a> Data<'a> {
+    pub fn new(args: fmt::Arguments<'a>) -> Self {
+        Data {
+            target: "",
+            args: args,
+            module_path: None,
+            file: None,
+            line: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
