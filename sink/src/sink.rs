@@ -17,6 +17,14 @@ pub trait Sink {
     fn send(&self, input: Self::TInput) -> Self::TResult;
 }
 
+pub trait SinkContainer<'a, TInput, TResult> {
+    fn sink(&'a self) -> &'a Sink<TInput=TInput, TResult=TResult>;
+}
+
+// pub trait IntoSink<TInput, TResult> {
+//     fn as_sink<'a>(&'a self) -> &'a Sink<TInput=TInput, TResult=TResult>;
+// }
+
 pub trait Dispatcher<TInput, TResult> {
     fn dispatch(&self, TInput) -> TResult;
 }
@@ -29,6 +37,15 @@ where
         self.send(input)
     }
 }
+
+// impl<'a, TSink, TInput, TResult> Dispatcher<TInput, TResult> for TSink
+// where
+//     TSink: SinkContainer<'a, TInput, TResult>,
+// {
+//     fn dispatch(&self, input: TInput) -> TResult {
+//         self.sink().send(input)
+//     }
+// }
 
 pub trait Source {
     type TOutput;
@@ -47,32 +64,3 @@ pub trait Initializable: Default {
 
     fn apply(&mut self, state: Self::TState);
 }
-
-// pub trait IService {
-//     type TInput;
-//     type TOutput;
-//     type THandle;
-
-//     fn run(rx: Self::TInput, tx: Self::TOutput) -> Self::THandle;
-// }
-
-// pub trait IContext<TInput, TOutput, TOutputResult>
-// where
-//     Self: ISink<TInput=TOutput, TResult=TOutputResult>,
-//     Self: ISource<TOutput=TInput>,
-// {}
-
-// pub trait ISystem {
-//     type TInput;
-//     type TOutput;
-//     type TResult;
-//     type THandle;
-
-//     fn bind(ctx: impl IContext<Self::TInput, Self::TOutput, Self::TResult>) -> Self::THandle;
-// }
-
-// impl<TInput, TOutput, TOutputResult, T> IContext<TInput, TOutput, TOutputResult> for T
-// where
-//     T: ISource<TOutput=TInput>,
-//     T: ISink<TInput=TOutput, TResult=TOutputResult>,
-// {}

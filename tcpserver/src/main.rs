@@ -5,14 +5,13 @@ extern crate sink;
 extern crate tcp_server;
 
 use component::*;
-use logging::Logging;
+use logging::{ Logging, LoggingEvents };
 // use env::*;
 // use net::*;
 use sink::*;
-use sink::vecsink::*;
+use server::{Events, Errors};
+// use sink::vecsink::*;
 use std::cell::RefCell;
-// use std::fmt;
-// use std::marker::PhantomData;
 use tcp_server::*;
 
 // static HOST_ADDR_KEY: &'static str = "HOST_ADDR";
@@ -44,118 +43,227 @@ impl Source for CommandSource {
 
     fn next(&self) -> Self::TOutput {
         self.queue.borrow_mut().pop()
-        // let mut queue: &Vec<AppCommands> = &*self.queue.borrow_mut();
-        // queue.pop()
     }
+}
+
+macro_rules! as_item {
+    ($i:item) => { $i };
+}
+
+// macro_rules! sinks {
+//     ($(($input, $result))*) => (
+        
+//     )
+// }
+macro_rules! context_struct_entry {
+    ($($input:ty,>,$result:ty,:,$sink:ident)+) => {
+        {
+            t: $input,
+        }
+    }
+}
+
+// macro_rules! context_struct {
+//     // (sink($input:type, $result:type)) => {
+//     //     &'a Sink<TInput==$input, TResult=$result>,
+//     // }
+//     // ($($entry:expr)+) => {
+
+//         // struct Context<'a> {
+//         //     context_struct_entry!($($entry)*)
+//         //     // context!
+//         //     // context_struct!
+//         // }
+//     // (@item $input:ty > $result:ty : $sink:ident) => {
+//     //     {
+//     //         &'a Sink<TInput=$input, TResult=()>,
+//     //     }
+//     // };
+//     // // ($($input:ty,>,$result:ty,:,$sink:ident)+) => {
+//     // ($($exp:expr)+) => {
+//     //     {
+//     //         // $(context_struct!($input:ty, >, $result:ty : $sink:ident))+
+//     //         context_struct!(@body $(context_struct!(@item $exp))+)
+//     //     }
+//     // };
+//     // ($($input:ty > $result:ty : $sink:expr)+,) => {
+//     //     #[derive(Debug)]
+//     //     struct Context<'a> {
+//     //         // $($body)*
+//     //         $(&'a Sink<TInput=$input, TResult=()>,)+
+//     //     }
+//     // }
+//     // input is empty: time to output
+//     (@munch () -> {$(#[$attr:meta])* struct $name:ident $(($ty:ty))*}) => {
+//         $(#[$attr])* struct $name($($ty),*);
+//     };
+    
+//     // branch off to generate an inner struct
+//     (@munch {$lifetime:tt} ($id:ident: struct $name:ident {$($inner:tt)*} $($next:tt)*) -> {$(#[$attr:meta])* struct<$lifetime:tt> $($output:tt)*}) => {
+//         context_struct!(@munch ($($inner)*) -> {$(#[$attr])* struct $name});
+//         context_struct!(@munch ($($next)*) -> {$(#[$attr])* struct $($output)*<$lifetime> ($id: $name)});
+//     };
+    
+//     // // throw on the last field
+//     // (@munch ($id:ident: $ty:ty) -> {$($output:tt)*}) => {
+//     //     context_struct!(@munch () -> {$($output)* ($id: $ty)});
+//     // };
+//     // throw on the last field
+//     (@munch {$lifetime:tt} ($input:ty > $result:ty : $sink:expr) -> {$($output:tt)*}) => {
+//         context_struct!(@munch () -> {$($output)* (&$lifetime Sink<TInput=$input, TResult=$result>)});
+//     };
+    
+//     // // throw on another field (not the last one)
+//     // (@munch ($id:ident: $ty:ty, $($next:tt)*) -> {$($output:tt)*}) => {
+//     //     context_struct!(@munch ($($next)*) -> {$($output)* ($id: $ty)});
+//     // };
+//     // throw on another field (not the last one)
+//     (@munch {$lifetime:tt} ($id:ident: $ty:ty, $($next:tt)*) -> {$($output:tt)*}) => {
+//         context_struct!(@munch ($($next)*) -> {$($output)* (&$lifetime Sink<TInput=$input, TResult=$result>)});
+//     };
+    
+//     // // entry point (this is where a macro call starts)
+//     // ($(#[$attr:meta])* struct $name:ident { $($input:tt)*} ) => {
+//     //     context_struct!(@munch ($($input)*) -> {$(#[$attr])* struct $name});
+//     //     //                 ^^^^^^^^^^^^    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+//     //     //                     input       output
+//     // }
+//     // entry point (this is where a macro call starts)
+//     (<$lifetime:tt> $($input:ty > $result:ty : $sink:expr)+,) => {
+//         context_struct!(@munch {'a} ($($input > $result : $sink)+) -> {struct Context});
+//         //                 ^^^^^^^^^^^^    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+//         //                     input       output
+//     }
+
+//     // ($($input:tt)+) => {
+//     //     context_struct!(@inner $($input:tt)+ -> )
+//     // }
+// }
+macro_rules! context_struct {
+    // (@struct_item <$lifetime:tt>)
+    // (@item <$lifetime:tt> $input:ty | $result:ty) => {
+    //     &$lifetime Sink<TInput=$input, TResult=$result>
+    // };
+
+    (@items <$lifetime:tt> () -> {$(($input:ty | $result:ty))*}) => {
+        struct Context<$lifetime>( $(&$lifetime Sink<TInput=$input, TResult=$result>),* );
+    };
+
+    (@items <$lifetime:tt> ($input:ty | $result:ty) -> {$($output:tt)*}) => {
+        context_struct!(@items <$lifetime> () -> {$($output)* ($input|$result)})
+        // $(context_struct!(@items <$lifetime> $next))*
+        // $(&$lifetime Sink<TInput=$input, TResult=$result>)+
+    };
+
+    (@items <$lifetime:tt> ($input:ty | $result:ty, $($next:tt)*) -> {$($output:tt)*}) => {
+        // context_struct!(@item <$lifetime> $input | $result);
+        context_struct!(@items <$lifetime> ($($next)*) -> {$($output)* ($input | $result)})
+        // $(&$lifetime Sink<TInput=$input, TResult=$result>)+
+    };
+
+    (struct $name:ident <$lifetime:tt> ($($input:tt)*)) => {
+        // struct Context<$lifetime>(
+        context_struct!(@items <$lifetime> ($($input)*) -> {});
+
+            // &$lifetime Sink<TInput=LoggingEvents, TResult=()>,
+            // &$lifetime Sink<TInput=server::Events, TResult=()>,
+            // &$lifetime Sink<TInput=server::Errors, TResult=()>,
+        // );
+
+        impl<'a> Dispatcher<LoggingEvents, ()> for Context<'a> {
+            fn dispatch(&self, input: LoggingEvents) {
+                self.0.send(input)
+            }
+        }
+
+        impl<'a> Dispatcher<server::Events, ()> for Context<'a> {
+            fn dispatch(&self, input: server::Events) {
+                self.1.send(input)
+            }
+        }
+
+        impl<'a> Dispatcher<server::Errors, ()> for Context<'a> {
+            fn dispatch(&self, input: server::Errors) {
+                self.2.send(input)
+            }
+        }
+    };
 }
 
 fn main() {
     env::EnvConfigProvider::new();
+    let logging_sink = Logging::new();
+    let event_sink = sink::fnsink::FnSink::new(|event: server::Events| {
+        println!("Event Sink: {:?}", event);
+    });
+    let error_sink = sink::fnsink::FnSink::new(|error: server::Errors| {
+        println!("Error Sink: {:?}", error);
+    });
 
-    let system = RefCell::<server::Component>::bind(Logging::new());
+    // TODO: Implement this macro:
+    // let ctx = 
+    context_struct! {
+        struct Context<'a> (
+            LoggingEvents | (),
+            Events | (),
+            Errors | (),
+        )
+    }
+    //     LoggingEvents>():(),//logging_sink,
+    //     // Events>():(),//event_sink,
+    //     // server::Errors>():(),//error_sink,
+    // ];
+    // println!("Context: {:?}", Context( &logging_sink ));
+    // let ctx = Context( &logging_sink );
+
+    // struct Context<'a>(
+    //     &'a Sink<TInput=LoggingEvents, TResult=()>,
+    //     &'a Sink<TInput=server::Events, TResult=()>,
+    //     &'a Sink<TInput=server::Errors, TResult=()>,
+    // );
+
+    // impl<'a> SinkContainer<'a, LoggingEvents, ()> for Context<'a> {
+    //     fn sink(&'a self) -> &'a Sink<TInput=LoggingEvents, TResult=()> {
+    //         self.0
+    //     }
+    // }
+
+    // impl<'a> SinkContainer<'a, server::Events, ()> for Context<'a> {
+    //     fn sink(&'a self) -> &'a Sink<TInput=server::Events, TResult=()> {
+    //         self.1
+    //     }
+    // }
+
+    // impl<'a> SinkContainer<'a, server::Errors, ()> for Context<'a> {
+    //     fn sink(&'a self) -> &'a Sink<TInput=server::Errors, TResult=()> {
+    //         self.2
+    //     }
+    // }
+
+    // impl<'a> Dispatcher<LoggingEvents, ()> for Context<'a> {
+    //     fn dispatch(&self, input: LoggingEvents) {
+    //         self.0.send(input)
+    //     }
+    // }
+
+    // impl<'a> Dispatcher<server::Events, ()> for Context<'a> {
+    //     fn dispatch(&self, input: server::Events) {
+    //         self.1.send(input)
+    //     }
+    // }
+
+    // impl<'a> Dispatcher<server::Errors, ()> for Context<'a> {
+    //     fn dispatch(&self, input: server::Errors) {
+    //         self.2.send(input)
+    //     }
+    // }
+
+    let ctx = Context(&logging_sink, &event_sink, &error_sink);
+    let system = RefCell::<server::Component>::bind(ctx);
     system.send(server::Commands::Socket(net::Commands::bind_addresses(
         "localhost:8080",
     )));
-    loop {
-        system.send(server::Commands::Socket(net::Commands::Accept));
-    }
-
-    // // let context = Context::new();
-    // // let context = logging::Logging::new();
-    // let context = Logging::new();
-    // // let harness = server::Component::to_system(context);
-    // let harness = server::Component::bind(context);
-    // harness.1.send(server::Commands::Socket(net::Commands::bind_addresses(
-    //     "localhost:8080",
-    // )));
     // loop {
-    //     harness.1.send(server::Commands::Socket(net::Commands::Accept));
+        system.send(server::Commands::Socket(net::Commands::Accept));
     // }
-
-    // let harness = net::Component::to_harness();
-    // harness.send(net::Commands::bind_addresses("localhost:8080"));
-    // harness.send(net::Commands::bind_addresses("localhost:8080"));
-    // harness.send(net::Commands::Accept);
 }
-
-// let _logging = Logging {};
-// let _cmd = CommandSource::new(vec![AppCommands::Foo, AppCommands::Bar]);
-
-// pub struct App<TCommandSource, TLoggingSink> {
-//     _cmd: PhantomData<TCommandSource>,
-//     _log: PhantomData<TLoggingSink>,
-// }
-
-// impl<TCommandSource, TLoggingSink> App<TCommandSource, TLoggingSink> {
-//     pub fn new() -> Self {
-//         App {
-//             _cmd: PhantomData,
-//             _log: PhantomData,
-//         }
-//     }
-// }
-
-// impl<TCommandSource, TLoggingSink> IService for App<TCommandSource, TLoggingSink>
-// where
-//     TCommandSource: ISource<TOutput=Option<AppCommands>>,
-//     TLoggingSink: ISink<TInput=LoggingEvents, TResult=()>,
-// {
-//     type TContext = (TCommandSource, TLoggingSink);
-
-//     fn bind(self, (cmd, log): Self::TContext) {
-//         loop {
-//             if let Some(command) = cmd.next() {
-//                 log.send(LoggingEvents::Info(format!("Got command {:?}", command)));
-//             } else {
-//                 break;
-//             }
-//         }
-//     }
-// }
-
-// mod string_source {
-//     use sink::{ ISink, ISource };
-
-//     // type StringSink = ISink<TInput=String, TResult=()>;
-
-//     impl<T> ISource for T
-//     where
-//         // T: IContext<T=String>,
-//         T: ISink<TInput=String, TResult=()>,
-//     {
-//         type TOutput = String;
-
-//         fn next(&self) -> Self::TOutput {
-//             "asdf".to_owned()
-//         }
-//     }
-// }
-
-// system.run(|tx| {
-//     tx.send
-// });
-
-// Server::new()
-//     .bind("localhost:8080", |addr| {
-//         SocketContext {}
-//     })
-//     .and_then(|server| {
-//         server.start()
-//     })
-//     .map(|result| {
-//         println!("Server result: {:?}", result);
-//     })
-//     .map_err(|err| {
-//         println!("Server error: {:?}", err);
-//     });
-// }
-// .map(|req| { // Would be tcp packets
-//     println!("Server Request: {:?}", req);
-//     req
-// })
-// .start();
-
-// App::new()
-// Should fail to compile due to missing source of T
-
-// let server = Server::run((), (logging.to_owned(), logging));

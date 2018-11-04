@@ -3,11 +3,11 @@
 use std::io;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs};
-use std::str::from_utf8;
+// use std::str::from_utf8;
 // use std::thread;
 
-use component::AggregateRoot;
-use sink::Initializable;
+// use component::{ Actor };
+use sink::{ Initializable, Sink };
 use socket_addrs::*;
 
 pub type Ttl = u32;
@@ -107,53 +107,11 @@ impl Initializable for Component {
     }
 }
 
-impl AggregateRoot for Component {
-    type TCommands = Commands;
-    type TEvents = Events;
-    type TErrors = Errors;
+impl Sink for Component {
+    type TInput = Commands;
+    type TResult = Result<Events, Errors>;
 
-    fn update(&mut self, event: Self::TEvents) {
-        match event {
-            Events::SocketBound(listener) => self.listener = Some(listener),
-            Events::ConnectionEstablished(mut socket, _addr) => {
-                // thread::spawn(move || {
-                {
-                    let mut reader = BufReader::new(&socket);
-                    // let mut buff = Vec::new();
-                    let mut read_bytes = reader.read_until(b'\n', &mut self.buffer).unwrap();
-                    while read_bytes > 0 {
-                        read_bytes = reader.read_until(b'\n', &mut self.buffer).unwrap();
-                        if read_bytes == 2 && &self.buffer[(self.buffer.len() - 2)..] == b"\r\n" {
-                            break;
-                        }
-                    }
-                    // warn!("\n{:?}\n", from_utf8(self.buffer.as_slice()).unwrap());
-                }
-                self.buffer = Vec::with_capacity(2048);
-                // return buff;
-                // let mut buffer = String::default();
-                // let len = socket.read_to_string(&mut buffer);
-                // warn!("Got data [{:?}]: {:?}", len, buffer);
-                // let response = b"HTTP/1.1 202 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n<html><body>Hello world</body></html>\r\n";
-                let response = b"HTTP/1.1 202 OK\r\nContent-Length=20\r\nETag=47feba42\r\n";
-                let result = socket.write(response).expect("Write failed");
-                // warn!("Result: {:?}", result);
-                // });
-                // warn!("Connection was established: {:?} - {:?}", socket, addr);
-            }
-            Events::ListenerCloned(_listener) => {
-                // warn!("Listener cloned");
-            }
-            Events::NonBlockingSet(value) => {
-                self.blocking = value;
-            }
-            Events::TtlSet(ttl) => {
-                self.ttl = Some(ttl);
-            }
-        }
-    }
-
-    fn handle(&self, command: Self::TCommands) -> Result<Self::TEvents, Self::TErrors> {
+    fn send(&self, command: Commands) -> Result<Events, Errors> {
         match command {
             Commands::Accept => match &self.listener {
                 None => Err(Errors::SocketNotBound),
@@ -192,3 +150,91 @@ impl AggregateRoot for Component {
         }
     }
 }
+
+// impl Statefull for Component {
+//     fn update(&mut self, event: Self::TEvents) {
+//         match event {
+//             Events::SocketBound(listener) => self.listener = Some(listener),
+//             Events::ConnectionEstablished(mut socket, _addr) => {
+//                 // thread::spawn(move || {
+//                 {
+//                     let mut reader = BufReader::new(&socket);
+//                     // let mut buff = Vec::new();
+//                     let mut read_bytes = reader.read_until(b'\n', &mut self.buffer).unwrap();
+//                     while read_bytes > 0 {
+//                         read_bytes = reader.read_until(b'\n', &mut self.buffer).unwrap();
+//                         if read_bytes == 2 && &self.buffer[(self.buffer.len() - 2)..] == b"\r\n" {
+//                             break;
+//                         }
+//                     }
+//                     // warn!("\n{:?}\n", from_utf8(self.buffer.as_slice()).unwrap());
+//                 }
+//                 self.buffer = Vec::with_capacity(2048);
+//                 // return buff;
+//                 // let mut buffer = String::default();
+//                 // let len = socket.read_to_string(&mut buffer);
+//                 // warn!("Got data [{:?}]: {:?}", len, buffer);
+//                 // let response = b"HTTP/1.1 202 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n<html><body>Hello world</body></html>\r\n";
+//                 let response = b"HTTP/1.1 202 OK\r\nContent-Length=20\r\nETag=47feba42\r\n";
+//                 let _result = socket.write(response).expect("Write failed");
+//                 // warn!("Result: {:?}", result);
+//                 // });
+//                 // warn!("Connection was established: {:?} - {:?}", socket, addr);
+//             }
+//             Events::ListenerCloned(_listener) => {
+//                 // warn!("Listener cloned");
+//             }
+//             Events::NonBlockingSet(value) => {
+//                 self.blocking = value;
+//             }
+//             Events::TtlSet(ttl) => {
+//                 self.ttl = Some(ttl);
+//             }
+//         }
+//     }
+// }
+
+// impl Actor for Component {
+//     type TCommands = Commands;
+//     type TEvents = Events;
+//     type TErrors = Errors;
+
+//     fn handle(&self, command: Self::TCommands) -> Result<Self::TEvents, Self::TErrors> {
+//         match command {
+//             Commands::Accept => match &self.listener {
+//                 None => Err(Errors::SocketNotBound),
+//                 Some(listener) => {
+//                     let (stream, addr) = listener.accept().map_err(Errors::AcceptFailed)?;
+//                     Ok(Events::ConnectionEstablished(stream, addr))
+//                 }
+//             },
+//             Commands::BindAddresses(addr) => match &self.listener {
+//                 Some(_) => Err(Errors::SocketAlreadyBound),
+//                 None => TcpListener::bind(addr)
+//                     .map_err(Errors::BindFailed)
+//                     .map(Events::SocketBound),
+//             },
+//             Commands::CloneListener => match &self.listener {
+//                 None => Err(Errors::SocketNotBound),
+//                 Some(listener) => listener
+//                     .try_clone()
+//                     .map_err(Errors::CloneFailed)
+//                     .map(Events::ListenerCloned),
+//             },
+//             Commands::SetNonBlocking(value) => match &self.listener {
+//                 None => Err(Errors::SocketNotBound),
+//                 Some(listener) => listener
+//                     .set_nonblocking(value)
+//                     .map_err(Errors::SetNonBlockingFailed)
+//                     .map(|_| Events::NonBlockingSet(value)),
+//             },
+//             Commands::SetTtl(ttl) => match &self.listener {
+//                 None => Err(Errors::SocketNotBound),
+//                 Some(listener) => listener
+//                     .set_ttl(ttl)
+//                     .map_err(Errors::SetTtlFailed)
+//                     .map(|_| Events::TtlSet(ttl)),
+//             },
+//         }
+//     }
+// }

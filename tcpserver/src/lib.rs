@@ -1,8 +1,8 @@
-#[macro_use]
-extern crate log;
+// #[macro_use]
+// extern crate log;
 extern crate env_logger;
 
-// #[macro_use]
+#[macro_use]
 extern crate logging;
 extern crate sink;
 

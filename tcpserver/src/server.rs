@@ -1,5 +1,5 @@
-use component::AggregateRoot;
-use sink::Initializable;
+use component::Actor;
+use sink::{ Sink, Initializable };
 
 use net;
 
@@ -42,24 +42,39 @@ impl Initializable for Component {
     }
 }
 
-impl AggregateRoot for Component {
-    type TCommands = Commands;
-    type TEvents = Events;
-    type TErrors = Errors;
+impl Sink for Component {
+    type TInput = Commands;
+    type TResult = Result<Events, Errors>;
 
-    fn update(&mut self, event: Self::TEvents) {
-        match event {
-            Events::Socket(event) => self.socket.update(event),
-        }
-    }
-
-    fn handle(&self, command: Self::TCommands) -> Result<Self::TEvents, Self::TErrors> {
+    fn send(&self, command: Commands) -> Result<Events, Errors> {
         match command {
             Commands::Socket(command) => self
                 .socket
-                .handle(command)
+                .send(command)
                 .map(Events::Socket)
                 .map_err(Errors::Socket),
         }
     }
 }
+
+// impl Actor for Component {
+//     type TCommands = Commands;
+//     type TEvents = Events;
+//     type TErrors = Errors;
+
+//     fn update(&mut self, event: Self::TEvents) {
+//         match event {
+//             Events::Socket(event) => self.socket.update(event),
+//         }
+//     }
+
+//     fn handle(&self, command: Self::TCommands) -> Result<Self::TEvents, Self::TErrors> {
+//         match command {
+//             Commands::Socket(command) => self
+//                 .socket
+//                 .handle(command)
+//                 .map(Events::Socket)
+//                 .map_err(Errors::Socket),
+//         }
+//     }
+// }
