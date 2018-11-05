@@ -9,7 +9,7 @@ where
 {
     target: TSink,
     map: FMap,
-    _uinput: PhantomData<UInput>,
+    _u: PhantomData<UInput>,
 }
 
 impl<FMap, TInput, UInput, TResult, TSink> Map<FMap, TInput, UInput, TResult, TSink>
@@ -27,7 +27,7 @@ where
         Map {
             target,
             map: map,
-            _uinput: PhantomData,
+            _u: PhantomData,
         }
     }
 }

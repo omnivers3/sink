@@ -16,11 +16,13 @@ pub mod vecsink;
 pub mod echo;
 pub mod map;
 pub mod reflect;
+pub mod resultmap;
 pub mod sink;
 
 // pub use self::asyncsink::*;
 pub use self::echo::*;
 pub use self::map::*;
+pub use self::resultmap::*;
 pub use self::reflect::*;
 pub use self::sink::*;
 
