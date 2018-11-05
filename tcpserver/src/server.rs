@@ -1,9 +1,7 @@
-// use component::Actor;
 use sink::{ Sink, Initializable };
-
 use net;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Commands {
     Socket(net::Commands),
 }

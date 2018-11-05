@@ -6,13 +6,13 @@ use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs};
 // use std::str::from_utf8;
 // use std::thread;
 
-// use component::{ Actor };
+// use Actor::{ Actor };
 use sink::{ Initializable, Sink };
 use socket_addrs::*;
 
 pub type Ttl = u32;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Commands {
     /// Blocks the harness thread until a connection arrives
     Accept,
@@ -26,6 +26,7 @@ pub enum Commands {
     SetTtl(Ttl),
 }
 
+/// Support for ToSocketAddrs as command param
 impl Commands {
     pub fn bind_addresses<I: Iterator<Item = SocketAddr>, T: ToSocketAddrs<Iter = I>>(
         addrs: T,
@@ -34,6 +35,7 @@ impl Commands {
     }
 }
 
+/// Support for ToSocketAddrs as command param
 impl<I: Iterator<Item = SocketAddr>, T: ToSocketAddrs<Iter = I>> From<T> for Commands {
     fn from(src: T) -> Self {
         Commands::BindAddresses(

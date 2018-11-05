@@ -33,6 +33,18 @@ where
     }
 }
 
+impl<'a, TInput, TResult, TSink> Sink for &'a EchoSink<TInput, TResult, TSink>
+where
+    TSink: Sink<TInput = TInput, TResult = TResult>,
+{
+    type TInput = TInput;
+    type TResult = TInput;
+
+    fn send(&self, input: <Self as Sink>::TInput) -> <Self as Sink>::TInput {
+        input
+    }
+}
+
 pub trait IEcho<TInput, TResult, TSink>
 where
     TSink: Sink<TInput = TInput, TResult = TResult>,

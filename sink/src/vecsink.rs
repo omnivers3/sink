@@ -1,5 +1,6 @@
 use sink::Sink;
 use std::cell::RefCell;
+use std::fmt::{ Debug };
 
 #[derive(Debug)]
 pub enum Error {
@@ -7,6 +8,7 @@ pub enum Error {
 }
 
 /// Vec is a simple accumulator to capture signals from a source
+#[derive(Clone)]
 pub struct VecSink<TInput>
 where
     TInput: Clone,
@@ -16,7 +18,7 @@ where
 
 impl<TInput> VecSink<TInput>
 where
-    TInput: Clone,
+    TInput: Clone + Debug,
 {
     pub fn new() -> Self {
         VecSink {
@@ -32,13 +34,14 @@ where
     fn push(&self, input: TInput) -> Result<usize, Error> {
         let mut data = self.data.borrow_mut();
         (*data).push(input);
+        println!("Data: {:?}", *data);
         Ok(data.len() - 1)
     }
 }
 
 impl<TInput> Sink for VecSink<TInput>
 where
-    TInput: Clone,
+    TInput: Clone + Debug,
 {
     type TInput = TInput;
     type TResult = Result<usize, Error>;
@@ -50,7 +53,7 @@ where
 
 impl<'a, TInput> Sink for &'a VecSink<TInput>
 where
-    TInput: Clone,
+    TInput: Clone + Debug,
 {
     type TInput = TInput;
     type TResult = Result<usize, Error>;

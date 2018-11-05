@@ -17,9 +17,9 @@ pub trait Sink {
     fn send(&self, input: Self::TInput) -> Self::TResult;
 }
 
-pub trait SinkContainer<'a, TInput, TResult> {
-    fn sink(&'a self) -> &'a Sink<TInput=TInput, TResult=TResult>;
-}
+// pub trait SinkContainer<'a, TInput, TResult> {
+//     fn sink(&'a self) -> &'a Sink<TInput=TInput, TResult=TResult>;
+// }
 
 // pub trait IntoSink<TInput, TResult> {
 //     fn as_sink<'a>(&'a self) -> &'a Sink<TInput=TInput, TResult=TResult>;
@@ -37,6 +37,15 @@ where
         self.send(input)
     }
 }
+
+// pub trait Lift<TInput, TResult> {
+//     fn lift<UInput, UResult>(&self, target: Sink<TInput=UInput, TResult=UResult>) -> Sink<TInput=TInput, TResult=UResult>
+//     where
+//         UInput: TResult,
+//     {
+//         target.map(self.send)
+//     }
+// }
 
 // impl<'a, TSink, TInput, TResult> Dispatcher<TInput, TResult> for TSink
 // where

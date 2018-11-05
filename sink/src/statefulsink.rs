@@ -48,6 +48,19 @@ where
     }
 }
 
+impl<'a, FHandler, TState, TInput, TResult> Sink for &'a StatefulSink<FHandler, TState, TInput, TResult>
+where
+    TState: Clone,
+    FHandler: Fn(&TState, TInput) -> TResult,
+{
+    type TInput = TInput;
+    type TResult = TResult;
+
+    fn send(&self, input: <Self as Sink>::TInput) -> <Self as Sink>::TResult {
+        (self.handler)(&self.state, input)
+    }
+}
+
 pub trait IntoStatefulSink
 where
     Self: Sized,

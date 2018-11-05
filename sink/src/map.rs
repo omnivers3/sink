@@ -45,6 +45,19 @@ where
     }
 }
 
+impl<'a, FMap, TInput, UInput, TResult, TSink> Sink for &'a Map<FMap, TInput, UInput, TResult, TSink>
+where
+    FMap: Fn(UInput) -> TInput,
+    TSink: Sink<TInput = TInput, TResult = TResult>,
+{
+    type TInput = UInput;
+    type TResult = TResult;
+
+    fn send(&self, input: <Self as Sink>::TInput) -> <Self as Sink>::TResult {
+        self.target.send((self.map)(input))
+    }
+}
+
 /// The SinkMap trait describes the parameters necessary to link a target Sink
 /// and a mapping function through a SinkMap, generaling it's constructor
 pub trait SinkMap<TInput, TResult, TSink>

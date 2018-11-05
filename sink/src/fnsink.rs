@@ -39,6 +39,36 @@ where
     }
 }
 
+impl<'a, FHandler, TInput, TResult> Sink for &'a FnSink<FHandler, TInput, TResult>
+where
+    FHandler: Fn(TInput) -> TResult,
+{
+    type TInput = TInput;
+    type TResult = TResult;
+
+    fn send(&self, input: <Self as Sink>::TInput) -> <Self as Sink>::TResult {
+        (self.handler)(input)
+    }
+}
+
+impl<'a, TInput, TResult> Sink for &'a Fn(TInput) -> TResult {
+    type TInput = TInput;
+    type TResult = TResult;
+
+    fn send(&self, input: <Self as Sink>::TInput) -> <Self as Sink>::TResult {
+        (self)(input)
+    }
+}
+
+impl<FHandler, TInput, TResult> From<FHandler> for FnSink<FHandler, TInput, TResult>
+where
+    FHandler: Fn(TInput) -> TResult,
+{
+    fn from(handler: FHandler) -> Self {
+        FnSink::new(handler)
+    }
+}
+
 #[cfg(test)]
 mod should {
     use super::*;

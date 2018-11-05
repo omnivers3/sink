@@ -34,6 +34,19 @@ where
     }
 }
 
+impl<'a, TInput, TResult, TSink> Sink for &'a Reflect<TInput, TResult, TSink>
+where
+    TInput: Clone,
+    TSink: Sink<TInput = TInput, TResult = TResult>,
+{
+    type TInput = TInput;
+    type TResult = (TInput, TResult);
+
+    fn send(&self, input: <Self as Sink>::TInput) -> <Self as Sink>::TResult {
+        (input.clone(), self.target.send(input))
+    }
+}
+
 pub trait IReflect<TInput, TResult, TSink>
 where
     TSink: Sink<TInput = TInput, TResult = TResult>,
