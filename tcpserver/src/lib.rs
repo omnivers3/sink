@@ -2,7 +2,7 @@
 // extern crate log;
 extern crate env_logger;
 
-#[macro_use]
+// #[macro_use]
 extern crate logging;
 extern crate sink;
 
@@ -107,3 +107,4 @@ impl<T> TcpServerSink for T where T: Sink<TInput = Commands, TResult = Result<Ev
 //         }
 //     }
 // }
+

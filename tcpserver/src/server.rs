@@ -1,4 +1,4 @@
-use component::Actor;
+// use component::Actor;
 use sink::{ Sink, Initializable };
 
 use net;

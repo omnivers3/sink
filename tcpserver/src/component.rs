@@ -61,7 +61,8 @@ where
     type TResult = ();
 
     fn send(&self, input: Self::TInput) -> Self::TResult {
-        let mut system = self.system().borrow_mut();
+        // let mut system = self.system().borrow_mut();
+        let system = self.system().borrow();
         self.ctx().dispatch(trace!("Command: {:?}", input));
         match system.send(input) {
             Ok(event) => {

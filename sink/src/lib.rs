@@ -24,6 +24,10 @@ pub use self::map::*;
 pub use self::reflect::*;
 pub use self::sink::*;
 
+#[macro_use]
+mod macros;
+// pub use self::macros::*;
+
 /// A facade around all the types we need from the `std`, `core`, and `alloc`
 /// crates. This avoids elaborate import wrangling having to happen in every
 /// module.
