@@ -46,8 +46,14 @@ impl Source for CommandSource {
     }
 }
 
-macro_rules! as_item {
-    ($i:item) => { $i };
+macro_rules! as_item { ($i:item) => { $i }; }
+
+macro_rules! as_expr { ($x:expr) => ($x) }
+
+macro_rules! as_ident { ($i:ident) => { $i }; }
+
+macro_rules! tuple_index {
+    ($tuple:expr, $idx:tt) => { as_expr!($tuple.$idx) }
 }
 
 // macro_rules! sinks {
@@ -145,48 +151,126 @@ macro_rules! context_struct {
     //     &$lifetime Sink<TInput=$input, TResult=$result>
     // };
 
-    (@items <$lifetime:tt> () -> {$(($input:ty | $result:ty))*}) => {
-        struct Context<$lifetime>( $(&$lifetime Sink<TInput=$input, TResult=$result>),* );
+    // (@struct <$lifetime:tt> () -> {$(($input:ty | $result:ty))*}) => {
+    //     // struct Context<$lifetime>( $(&$lifetime Sink<TInput=$input, TResult=$result>),* );
+
+    //     // #[derive(Debug)]
+    //     struct Context<'a>( $(&$lifetime Sink<TInput=$input, TResult=$result>),* );
+    // };
+
+    // (@struct <$lifetime:tt> ($input:ty | $result:ty = $t:expr) -> {$($output:tt)*}) => {
+    //     context_struct!(@struct <$lifetime> () -> {$($output)* ($input|$result)})
+    // };
+
+    // (@struct <$lifetime:tt> ($input:ty | $result:ty = $t:expr, $($next:tt)*) -> {$($output:tt)*}) => {
+    //     context_struct!(@struct <$lifetime> ($($next)*) -> {$($output)* ($input | $result)})
+    // };
+    // (@struct $_index:expr, () -> {$(($input:ty | $result:ty | $handler:expr))*}) => {
+        // struct Context<$lifetime>( $(&$lifetime Sink<TInput=$input, TResult=$result>),* );
+
+        // #[derive(Debug)]
+        // struct Context<'a>( $(&'a Sink<TInput=$input, TResult=$result>),* );
+    (@struct $_index:expr, () -> {$(($index:expr, $input:ty | $result:ty | $handler:expr))*}) => {
+        struct Context<'a>( $(&'a Sink<TInput=$input, TResult=$result>),* );
+        // struct Context<'a> {
+        //     $($index: &'a Sink<TInput=$input, TResult=$result>),*
+        // }
+        // struct Context<'a> {
+
+        // }
+
+        // $(
+        //     impl<'a> Dispatcher<$input, $result> for Context<'a> {
+        //         fn dispatch(&self, input: $input) {
+        //             self
+        //         }
+        //     }
+        // )*
     };
 
-    (@items <$lifetime:tt> ($input:ty | $result:ty) -> {$($output:tt)*}) => {
-        context_struct!(@items <$lifetime> () -> {$($output)* ($input|$result)})
-        // $(context_struct!(@items <$lifetime> $next))*
-        // $(&$lifetime Sink<TInput=$input, TResult=$result>)+
+    // (@dispatcher {})
+
+    (@struct $index:expr, ($input:ty | $result:ty = $handler:expr) -> {$($output:tt)*}) => {
+        context_struct!(@struct $index + 1usize, () -> {$($output)* ($index, $input | $result | $handler)})
     };
 
-    (@items <$lifetime:tt> ($input:ty | $result:ty, $($next:tt)*) -> {$($output:tt)*}) => {
-        // context_struct!(@item <$lifetime> $input | $result);
-        context_struct!(@items <$lifetime> ($($next)*) -> {$($output)* ($input | $result)})
-        // $(&$lifetime Sink<TInput=$input, TResult=$result>)+
+    (@struct $index:expr, ($input:ty | $result:ty = $handler:expr, $($next:tt)*) -> {$($output:tt)*}) => {
+        context_struct!(@struct $index + 1usize, ($($next)*) -> {$($output)* ($index, $input | $result | $handler)})
     };
 
-    (struct $name:ident <$lifetime:tt> ($($input:tt)*)) => {
-        // struct Context<$lifetime>(
-        context_struct!(@items <$lifetime> ($($input)*) -> {});
+    // (@item $index:expr, $input:ty | $result:ty | $handler:expr) => {
+    //     impl<'a> Dispatcher<$input, $result> for Context<'a> {
+    //         fn dispatch(&self, input: $input) {
+    //             self.$index.send(input)
+    //         }
+    //     }
+    // };
 
-            // &$lifetime Sink<TInput=LoggingEvents, TResult=()>,
-            // &$lifetime Sink<TInput=server::Events, TResult=()>,
-            // &$lifetime Sink<TInput=server::Errors, TResult=()>,
-        // );
-
-        impl<'a> Dispatcher<LoggingEvents, ()> for Context<'a> {
-            fn dispatch(&self, input: LoggingEvents) {
-                self.0.send(input)
+    (@item $index:expr, $input:ty | $result:ty = $handler:expr) => {{
+        impl<'a> Dispatcher<$input, $result> for Context<'a> {
+            fn dispatch(&self, input: $input) {
+                println!("Dispatcher[{:?}]: {:?}", $index, input);
+                // tuple_index!(self, as_ident!($index))//.send(input)
+                // as_expr!(self.$index.send(input))
+                // self.$index.send(input)
+                ()
+                // as_expr!(self.$index.send(input))
+                // as_expr!(self.as_expr!($index).send(input))
             }
         }
+    }};
 
-        impl<'a> Dispatcher<server::Events, ()> for Context<'a> {
-            fn dispatch(&self, input: server::Events) {
-                self.1.send(input)
-            }
-        }
+    (@disp $_index:expr, ()) => {
+        // $($dispatcher)*
+        // $(
+        //     impl<'a> Dispatcher<$input, $result> for Context<'a> {
+        //         fn dispatch(&self, input: $input) {
+        //             self
+        //         }
+        //     }
+        // )*
+    };
 
-        impl<'a> Dispatcher<server::Errors, ()> for Context<'a> {
-            fn dispatch(&self, input: server::Errors) {
-                self.2.send(input)
-            }
-        }
+    (@disp $index:expr, ($input:ty | $result:ty = $handler:expr)) => {
+        context_struct!(@item $index, $input | $result = $handler);
+        context_struct!(@disp $index + 1usize, ())
+    };
+
+    (@disp $index:expr, ($input:ty | $result:ty = $handler:expr, $($next:tt)*)) => {
+        context_struct!(@item $index, $input | $result = $handler);
+        context_struct!(@disp $index + 1usize, ($($next)*))
+    };
+}
+
+macro_rules! context {
+    // (struct $name:ident <$lifetime:tt> ($($input:tt)*)) => {
+    ($($input:tt)*) => {
+        // context_struct!(@struct <$lifetime> ($($input)*) -> {});
+        context_struct!(@struct 0usize, ($($input)*) -> {});
+
+        context_struct!(@disp 0usize, ($($input)*));
+
+        // &$lifetime Sink<TInput=LoggingEvents, TResult=()>,
+        // &$lifetime Sink<TInput=server::Events, TResult=()>,
+        // &$lifetime Sink<TInput=server::Errors, TResult=()>,
+
+        // impl<'a> Dispatcher<LoggingEvents, ()> for Context<'a> {
+        //     fn dispatch(&self, input: LoggingEvents) {
+        //         self.0.send(input)
+        //     }
+        // }
+
+        // impl<'a> Dispatcher<server::Events, ()> for Context<'a> {
+        //     fn dispatch(&self, input: server::Events) {
+        //         self.1.send(input)
+        //     }
+        // }
+
+        // impl<'a> Dispatcher<server::Errors, ()> for Context<'a> {
+        //     fn dispatch(&self, input: server::Errors) {
+        //         self.2.send(input)
+        //     }
+        // }
     };
 }
 
@@ -200,15 +284,15 @@ fn main() {
         println!("Error Sink: {:?}", error);
     });
 
-    // TODO: Implement this macro:
-    // let ctx = 
-    context_struct! {
-        struct Context<'a> (
-            LoggingEvents | (),
-            Events | (),
-            Errors | (),
-        )
+    context! {
+        LoggingEvents | () = logging_sink,
+        Events | () = event_sink,
+        Errors | () = error_sink,
     }
+
+    let ctx = Context(&logging_sink, &event_sink, &error_sink);
+
+    // println!("Temp: {:?}", );
     //     LoggingEvents>():(),//logging_sink,
     //     // Events>():(),//event_sink,
     //     // server::Errors>():(),//error_sink,
@@ -258,7 +342,7 @@ fn main() {
     //     }
     // }
 
-    let ctx = Context(&logging_sink, &event_sink, &error_sink);
+    
     let system = RefCell::<server::Component>::bind(ctx);
     system.send(server::Commands::Socket(net::Commands::bind_addresses(
         "localhost:8080",
