@@ -35,8 +35,8 @@ impl Default for Component {
 impl Initializable for Component {
     type TState = State;
 
-    fn apply(&mut self, state: State) {
-        self.socket.apply(state.socket);
+    fn apply_state(&mut self, state: State) {
+        self.socket.apply_state(state.socket);
     }
 }
 

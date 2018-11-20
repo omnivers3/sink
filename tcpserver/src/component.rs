@@ -4,26 +4,42 @@ use std::fmt;
 use logging::*;
 use sink::*;
 
-/// An aggregate is a container which owns a source of truth or data set
-pub trait Actor {
-    type TCommands;
-    type TEvents;
-    type TErrors;
+// /// An aggregate is a container which owns a source of truth or data set
+// pub trait Actor {
+//     type TCommands;
+//     type TEvents;
+//     type TErrors;
 
-    // fn update(&mut self, event: Self::TEvents);
-    fn handle(&self, command: Self::TCommands) -> Result<Self::TEvents, Self::TErrors>;
+//     // fn update(&mut self, event: Self::TEvents);
+//     fn handle(&self, command: Self::TCommands) -> Result<Self::TEvents, Self::TErrors>;
+// }
+
+pub struct System<TContext, TSystem> {
+    context: TContext,
+    system: TSystem,
 }
 
-pub struct System<TContext, TSystem>(TContext, TSystem);
-
 impl<TContext, TSystem> System<TContext, TSystem> {
-    pub fn ctx(&self) -> &TContext {
-        &self.0
+    pub fn new(context: TContext, system: TSystem) -> Self {
+        System {
+            context,
+            system,
+        }
+    }
+    
+    pub fn context(&self) -> &TContext {
+        &self.context
     }
 
     pub fn system(&self) -> &TSystem {
-        &self.1
+        &self.system
     }
+}
+
+pub trait Runtime<TContext> {
+    type TResult;
+
+    fn run(self, ctx: TContext) -> Self::TResult;
 }
 
 pub trait SystemDef<TContext, TSystem> {
@@ -33,18 +49,13 @@ pub trait SystemDef<TContext, TSystem> {
 impl<TSystem, TContext, TCommands, TEvents, TErrors> SystemDef<TContext, RefCell<TSystem>>
     for RefCell<TSystem>
 where
-    TContext: Dispatcher<LoggingEvents, ()> + Dispatcher<TEvents, ()> + Dispatcher<TErrors, ()>,
+    TContext: Dispatcher<LoggingEvents> + Dispatcher<TEvents> + Dispatcher<TErrors>,
     // T: Actor<TCommands = TCommands, TEvents = TEvents, TErrors = TErrors> + Initializable,
     TSystem: Sink<TInput=TCommands, TResult=Result<TEvents, TErrors>> + Initializable,
 {
     fn bind(ctx: TContext) -> System<TContext, RefCell<TSystem>> {
-        System(ctx, Self::default())
+        System::new(ctx, Self::default())
     }
-}
-
-pub enum DispatchErrors<TEvent, TError> {
-    Event (TEvent),
-    Error (TError),
 }
 
 impl<TContext, TSystem, TCommands, TEvents, TErrors> Sink
@@ -53,7 +64,7 @@ where
     TCommands: fmt::Debug,
     TEvents: fmt::Debug,
     TErrors: fmt::Debug,
-    TContext: Dispatcher<LoggingEvents, ()> + Dispatcher<TEvents, ()> + Dispatcher<TErrors, ()>,
+    TContext: Dispatcher<LoggingEvents> + Dispatcher<TEvents> + Dispatcher<TErrors>,
     // TSystem: Actor<TCommands = TCommands, TEvents = TEvents, TErrors = TErrors>,
     TSystem: Sink<TInput=TCommands, TResult=Result<TEvents, TErrors>>,
 {
@@ -61,24 +72,29 @@ where
     type TResult = ();
 
     fn send(&self, input: Self::TInput) -> Self::TResult {
+        let ctx = self.context();
         // let mut system = self.system().borrow_mut();
         let system = self.system().borrow();
-        self.ctx().dispatch(trace!("Command: {:?}", input));
+        ctx.dispatch(trace!("Command: {:?}", input));
         match system.send(input) {
             Ok(event) => {
-                self.ctx().dispatch(warn!("Event: {:?}", event));
-                self.ctx().dispatch(event);
+                ctx.dispatch(warn!("Event: {:?}", event));
+                ctx.dispatch(event);
                 // system.update(event);
             }
             Err(err) => {
-                self.ctx().dispatch(error!("Error: {:?}", err));
-                self.ctx().dispatch(err);
+                ctx.dispatch(error!("Error: {:?}", err));
+                ctx.dispatch(err);
             }
         }
         ()
     }
 }
 
+// pub enum DispatchErrors<TEvent, TError> {
+//     Event (TEvent),
+//     Error (TError),
+// }
 
 // pub type Context<TEvents> = (Sink<TInput=LoggingEvents, TResult=()>, Sink<TInput=TEvents, TResult=()>);
 

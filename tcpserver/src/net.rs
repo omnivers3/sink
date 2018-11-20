@@ -76,7 +76,7 @@ pub enum Errors {
 #[derive(Debug)]
 pub struct State {
     blocking: bool,
-    listener: TcpListener,
+    listener: Option<TcpListener>,
 }
 
 #[derive(Debug)]
@@ -101,11 +101,12 @@ impl Default for Component {
 impl Initializable for Component {
     type TState = State;
 
-    fn apply(&mut self, state: State) {
-        let ttl = state.listener.ttl().ok();
+    fn apply_state(&mut self, state: State) {
         self.blocking = state.blocking;
-        self.listener = Some(state.listener);
-        self.ttl = ttl;
+        if let Some(ref listener) = state.listener {
+            self.ttl = listener.ttl().ok();
+        }
+        self.listener = state.listener;
     }
 }
 

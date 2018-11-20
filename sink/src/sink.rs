@@ -25,15 +25,27 @@ pub trait Sink {
 //     fn as_sink<'a>(&'a self) -> &'a Sink<TInput=TInput, TResult=TResult>;
 // }
 
-pub trait Dispatcher<TInput, TResult> {
-    fn dispatch(&self, TInput) -> TResult;
+// pub trait Dispatcher<TInput, TResult> {
+//     fn dispatch(&self, TInput) -> TResult;
+// }
+
+// impl<TSink, TInput, TResult> Dispatcher<TInput, TResult> for TSink
+// where
+//     TSink: Sink<TInput = TInput, TResult = TResult>,
+// {
+//     fn dispatch(&self, input: TInput) -> TResult {
+//         self.send(input)
+//     }
+// }
+pub trait Dispatcher<TInput> {
+    fn dispatch(&self, TInput);
 }
 
-impl<TSink, TInput, TResult> Dispatcher<TInput, TResult> for TSink
+impl<TSink, TInput> Dispatcher<TInput> for TSink
 where
-    TSink: Sink<TInput = TInput, TResult = TResult>,
+    TSink: Sink<TInput = TInput, TResult = ()>,
 {
-    fn dispatch(&self, input: TInput) -> TResult {
+    fn dispatch(&self, input: TInput) {
         self.send(input)
     }
 }
@@ -67,9 +79,9 @@ pub trait Initializable: Default {
 
     fn init(state: Self::TState) -> Self {
         let mut default = Self::default();
-        default.apply(state);
+        default.apply_state(state);
         default
     }
 
-    fn apply(&mut self, state: Self::TState);
+    fn apply_state(&mut self, state: Self::TState);
 }

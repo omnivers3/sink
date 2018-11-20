@@ -14,6 +14,8 @@ pub mod net;
 pub mod server;
 pub mod socket_addrs;
 
+pub mod product;
+
 use sink::*;
 use std::io;
 use std::net::{AddrParseError, SocketAddr, TcpListener};
