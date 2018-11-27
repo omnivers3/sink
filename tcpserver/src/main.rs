@@ -135,7 +135,7 @@ where
     pub fn new(source: TSource) -> Self {
         MockLineReader {
             source,
-            delay_ms: 1,
+            delay_ms: 10,
         }
     }
 }
@@ -147,16 +147,20 @@ where
     TSource::Item: ToString,
 {
     fn run(self, ctx: TContext) {
+        let delay = self.delay_ms;
+        let send = | value: String | {
+            thread::sleep_ms(delay);
+            ctx.dispatch(StdinEvents::Paused);
+            ctx.dispatch(StdinEvents::LineReceived (value));
+            ctx.dispatch(StdinEvents::Listening);
+        };
         ctx.dispatch(trace!("producing mock lines"));
-        thread::sleep_ms(self.delay_ms);
-        ctx.dispatch(StdinEvents::LineReceived ("foo".to_owned()));
-        thread::sleep_ms(self.delay_ms);
-        ctx.dispatch(StdinEvents::LineReceived ("bar".to_owned()));
-        thread::sleep_ms(self.delay_ms);
-        ctx.dispatch(StdinEvents::LineReceived ("baz".to_owned()));
+        ctx.dispatch(StdinEvents::Listening);
+        send("foo".to_owned());
+        send("bar".to_owned());
+        send("baz".to_owned());
         for line in self.source.into_iter() {
-            thread::sleep_ms(self.delay_ms);
-            ctx.dispatch(StdinEvents::LineReceived (line.to_string()))
+            send(line.to_string());
         }
     }
 }
@@ -187,8 +191,8 @@ impl Source for FooSource {
 fn main() {
     env::EnvConfigProvider::new();
 
-    unthreaded();
-    // threaded();
+    // unthreaded();
+    threaded();
 }
 
 fn unthreaded() {
@@ -220,7 +224,6 @@ fn unthreaded() {
     });
 
     let event_sink = FnSink::new(|event: StdinEvents| {
-        //println!("Stdin Line Reader Event Sink: {:?}", event);
         eventstore_projection_sink.send(event.clone());
         concatview_projection_sink.send(event);
     });
@@ -247,8 +250,9 @@ fn threaded() {
         eventstore.push(event);
         Ok (eventstore.len())
     }).map_result(|index: Result<usize, ()>| {
-        //println!("Pushed event into index: [{:?}]", index.unwrap());
     });
+
+    let writer = StdoutLineWriter::new();
 
     let arc_concatview = Arc::new(Mutex::new(String::default()));
     let mutex_concatview = arc_concatview.clone();
@@ -256,23 +260,17 @@ fn threaded() {
         let mut string = mutex_concatview.lock().unwrap();
         match event {
             StdinEvents::LineReceived (ref line) => {
-                *string += line;
+                let value = format!("{}{}", string, line);
+                *string = value.to_owned();
+                writer.send(value);
             }
             _ => {}
         }
         Ok ((*string).to_owned())
     }).map_result(|value: Result<String, ()>| {
-        //println!("Appended event with resulting value: [{:?}]", value.unwrap());
     });
 
-    // eventstore_projection_sink.lift(|state, event| {
-    //     let mut eventstore = state.lock().unwrap();
-    //     eventstore.push(event);
-    //     Ok (eventstore.len())
-    // });
-
     let event_sink = FnSink::new(move |event: StdinEvents| {
-        //println!("Stdin Line Reader Event Sink: {:?}", event);
         eventstore_projection_sink.send(event.clone());
         concatview_projection_sink.send(event);
     });

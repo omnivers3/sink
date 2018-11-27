@@ -47,6 +47,7 @@ impl Source for StdIOLines {
         self.send(StdinEvents::Listening);
         let lock = stdin.lock();
         for line in lock.lines() {
+            self.send(StdinEvents::Paused);
             match line {
                 Err (err) => {
                     // ctx.dispatch(error!("error reading stdin: {:?}", err));
@@ -56,10 +57,10 @@ impl Source for StdIOLines {
                     // ctx.dispatch(trace!("received line [{:?}]", line));
                     // ctx.dispatch(StdinEvents::LineReceived (line));
                     self.send(StdinEvents::LineReceived (line));
+                    self.send(StdinEvents::Listening);
                 }
             }
         }
-        self.send(StdinEvents::Paused);
     }
 }
 
