@@ -37,9 +37,9 @@ impl<TContext, TSystem> System<TContext, TSystem> {
 }
 
 pub trait Runtime<TContext> {
-    type TResult;
+    // type TResult;
 
-    fn run(self, ctx: TContext) -> Self::TResult;
+    fn run(self, ctx: TContext);// -> Self::TResult;
 }
 
 pub trait SystemDef<TContext, TSystem> {

@@ -173,7 +173,24 @@ mod should {
         //     errors: Errors | () = error_sink,
         //     commands: () | Commands = command_source,
         // })
+
+        let logging_sink = Logging::new();
+        let event_vec = VecSink::new();
+        let event_sink = &event_vec.map(|event| format!("{:?}", event)).map_result(|_| ());
+        let error_sink = FnSink::new(|error: server::Errors| {
+            println!("Error Sink: {:?}", error);
+        });
+        let ctx = ctx!{
+            logging: LoggingEvents | () = logging_sink,
+            events: Events | () = event_sink,
+            errors: Errors | () = error_sink,
+            commands: () | Commands = command_source,
+        };
+        let ping = AggregateActor::<Component>::bind(ctx, "ping");
+        let pong = AggregateActor::<Component>::bind(ctx, "pong");
         
+        let system = MemorySystem::Run([ping, pong]);
+
 
         let mut actor = Component::default();
         println!("Actor1: {:?}", actor);

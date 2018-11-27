@@ -28,7 +28,6 @@ macro_rules! _ctx_struct {
 
     // Expand to a dispatcher trait impl
     (@item $index:expr, $name: ident | $input:ty = $handler:expr) => {{
-        // impl<'a> Dispatcher<$input, $result> for Context<'a> {
         impl<'a> Dispatcher<$input> for Context<'a> {
             fn dispatch(&self, input: $input) {
                 // println!("Dispatcher[{:?} | {:?}]: {:?}", $index, stringify!($name), input);
@@ -56,9 +55,7 @@ macro_rules! _ctx_struct {
 #[macro_export(local_inner_macros)]
 macro_rules! ctx_struct {
     ($($input:tt)*) => {
-
         _ctx_struct!(@struct 0usize, ($($input)*) -> {});
-
         _ctx_struct!(@disp 0usize, ($($input)*));
     };
 }
@@ -66,10 +63,6 @@ macro_rules! ctx_struct {
 #[macro_export(local_inner_macros)]
 macro_rules! _ctx {
     (@ctx $_index:expr, () -> {$(($index:expr, $name:ident | $input:ty | $handler:expr))*}) => {
-        // {
-        // $(let _$name = &$handler);*
-        // Context::new($(_$name),*)
-        // }
         Context::new($(&$handler),*)
     };
 
@@ -87,7 +80,6 @@ macro_rules! ctx {
     ($($input:tt)*) => {
         {
             ctx_struct!($($input)*);
-
             _ctx!(@ctx 0usize, ($($input)*) -> {})
         }
     };

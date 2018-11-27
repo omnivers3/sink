@@ -37,6 +37,7 @@ pub trait Sink {
 //         self.send(input)
 //     }
 // }
+
 pub trait Dispatcher<TInput> {
     fn dispatch(&self, TInput);
 }

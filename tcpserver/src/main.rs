@@ -23,7 +23,7 @@ use std::io;
 // use std::io::prelude::*;
 // use std::io::{IoError, IoErrorKind};
 // use std::io::{ BufRead, Read, Write };
-use std::io::{ BufRead };
+use std::io::{ BufRead, Stdin, Stdout, Write };
 use std::iter::{ IntoIterator };
 use std::sync::{ Arc, Mutex };
 // use byteorder::{LittleEndian, ReadBytesExt};
@@ -37,38 +37,12 @@ use std::marker::{ PhantomData };
 // static HOST_PORT_KEY: &'static str = "HOST_PORT";
 // static HOST_PORT_DEFAULT: &'static str = "8080";
 
-// fn main() {
-//     env::EnvConfigProvider::new();
-
-//     let logging = Logging::new();
-
-//     {
-//         use product::*;
-
-//         let system = Component::bind(context!{
-//             logging: LoggingEvents | () = logging,
-//         });
-
-//         system.send(Commands::Register (RegistrationData { name: "foo" }));
-//         system.send(Commands::Disable);
-//         system.send(Commands::ReEnable);
-//     }
-// }
-
-// pub struct CommandMeta<'a> {
-//     key: &'a str,
-// }
-
-// #[derive(Debug)]
-// pub enum StdinCommands {
-//     Listen,
-// }
-
 #[derive(Clone, Debug)]
 pub enum StdinEvents {
     Listening,
     // Terminated,
     LineReceived (String),
+    Paused,
 }
 
 // #[derive(Debug)]
@@ -84,11 +58,37 @@ pub enum StdinEvents {
 //     pub fn new()
 // }
 
-pub struct StdinLineReader {}
+pub struct StdoutLineWriter {
+    stdout: Stdout,
+}
+
+impl StdoutLineWriter {
+    pub fn new() -> Self {
+        StdoutLineWriter {
+            stdout: io::stdout(),
+        }
+    }
+}
+
+impl Sink for StdoutLineWriter {
+    type TInput = String;
+    type TResult = Result<(), io::Error>;
+
+    fn send(&self, value: Self::TInput) -> Self::TResult {
+        let mut lock = self.stdout.lock();
+        write!(lock, "{}\n", value)
+    }
+}
+
+pub struct StdinLineReader {
+    stdin: Stdin,
+}
 
 impl StdinLineReader {
     pub fn new() -> Self {
-        StdinLineReader {}
+        StdinLineReader {
+            stdin: io::stdin(),
+        }
     }
 }
 
@@ -96,24 +96,24 @@ impl<TContext> Runtime<TContext> for StdinLineReader
 where
     TContext: Dispatcher<LoggingEvents> + Dispatcher<StdinEvents>,
 {
-    type TResult = ();
-
-    fn run(self, ctx: TContext) -> Self::TResult {
-        let stdin = io::stdin();
-        ctx.dispatch(trace!("blocking on stdin"));
-        ctx.dispatch(StdinEvents::Listening);
-        let lock = stdin.lock();
-        for line in lock.lines() {
-            match line {
-                Err (err) => {
-                    ctx.dispatch(error!("error reading stdin: {:?}", err));
-                    break;
-                }
-                Ok (line) => {
-                    ctx.dispatch(trace!("received line [{:?}]", line));
-                    ctx.dispatch(StdinEvents::LineReceived (line));
+    fn run(self, ctx: TContext) {
+        loop {
+            ctx.dispatch(trace!("blocking on stdin"));
+            ctx.dispatch(StdinEvents::Listening);
+            let lock = self.stdin.lock();
+            for line in lock.lines() {
+                match line {
+                    Err (err) => {
+                        ctx.dispatch(error!("error reading stdin: {:?}", err));
+                        break;
+                    }
+                    Ok (line) => {
+                        ctx.dispatch(trace!("received line [{:?}]", line));
+                        ctx.dispatch(StdinEvents::LineReceived (line));
+                    }
                 }
             }
+            ctx.dispatch(StdinEvents::Paused);
         }
     }
 }
@@ -124,6 +124,7 @@ where
     TSource::Item: ToString,
 {
     source: TSource,
+    delay_ms: u32,
 }
 
 impl<TSource> MockLineReader<TSource>
@@ -133,7 +134,8 @@ where
 {
     pub fn new(source: TSource) -> Self {
         MockLineReader {
-            source
+            source,
+            delay_ms: 1,
         }
     }
 }
@@ -144,16 +146,41 @@ where
     TSource: IntoIterator,
     TSource::Item: ToString,
 {
-    type TResult = ();
-
-    fn run(self, ctx: TContext) -> Self::TResult {
+    fn run(self, ctx: TContext) {
         ctx.dispatch(trace!("producing mock lines"));
+        thread::sleep_ms(self.delay_ms);
         ctx.dispatch(StdinEvents::LineReceived ("foo".to_owned()));
+        thread::sleep_ms(self.delay_ms);
         ctx.dispatch(StdinEvents::LineReceived ("bar".to_owned()));
+        thread::sleep_ms(self.delay_ms);
         ctx.dispatch(StdinEvents::LineReceived ("baz".to_owned()));
         for line in self.source.into_iter() {
+            thread::sleep_ms(self.delay_ms);
             ctx.dispatch(StdinEvents::LineReceived (line.to_string()))
         }
+    }
+}
+
+pub struct FooSource {
+    counter: RefCell<u32>,
+}
+
+impl FooSource {
+    pub fn new() -> Self {
+        FooSource {
+            counter: RefCell::default(),
+        }
+    }
+}
+
+impl Source for FooSource {
+    type TOutput = String;
+
+    fn next(&self) -> Self::TOutput {
+        thread::sleep_ms(1000);
+        let mut counter = self.counter.borrow_mut();
+        *counter += 1;
+        format!("foo {}\n", counter)
     }
 }
 
@@ -173,31 +200,33 @@ fn unthreaded() {
         eventstore.push(event);
         Ok (eventstore.len())
     }).map_result(|index: Result<usize, ()>| {
-        println!("Pushed event into index: [{:?}]", index.unwrap());
     });
+
+    let writer = StdoutLineWriter::new();
 
     let concatview = RefCell::new(String::default());
     let concatview_projection_sink = FnSink::new(|event: StdinEvents| {
         let mut concatview = concatview.borrow_mut();
         match event {
             StdinEvents::LineReceived (ref line) => {
-                *concatview = format!("{}{}", concatview, line);
+                let value = format!("{}{}", concatview, line);
+                *concatview = value.to_owned();
+                writer.send(value);
             }
             _ => {}
         }
         Ok (concatview.to_owned())
     }).map_result(|value: Result<String, ()>| {
-        println!("Appended event with resulting value: [{:?}]", value.unwrap());
     });
 
-    let event_sink = FnSink::new(move |event: StdinEvents| {
-        println!("Stdin Line Reader Event Sink: {:?}", event);
+    let event_sink = FnSink::new(|event: StdinEvents| {
+        //println!("Stdin Line Reader Event Sink: {:?}", event);
         eventstore_projection_sink.send(event.clone());
         concatview_projection_sink.send(event);
     });
     
     // let runtime = StdinLineReader::new();
-    let runtime = MockLineReader::new(&["asdf", "blah", "bloo"]);
+    let runtime = MockLineReader::new(&["foo", "bar", "fiz"]);
 
     runtime.run(ctx! {
         logging: LoggingEvents = logging_sink,
@@ -218,7 +247,7 @@ fn threaded() {
         eventstore.push(event);
         Ok (eventstore.len())
     }).map_result(|index: Result<usize, ()>| {
-        println!("Pushed event into index: [{:?}]", index.unwrap());
+        //println!("Pushed event into index: [{:?}]", index.unwrap());
     });
 
     let arc_concatview = Arc::new(Mutex::new(String::default()));
@@ -233,17 +262,23 @@ fn threaded() {
         }
         Ok ((*string).to_owned())
     }).map_result(|value: Result<String, ()>| {
-        println!("Appended event with resulting value: [{:?}]", value.unwrap());
+        //println!("Appended event with resulting value: [{:?}]", value.unwrap());
     });
 
+    // eventstore_projection_sink.lift(|state, event| {
+    //     let mut eventstore = state.lock().unwrap();
+    //     eventstore.push(event);
+    //     Ok (eventstore.len())
+    // });
+
     let event_sink = FnSink::new(move |event: StdinEvents| {
-        println!("Stdin Line Reader Event Sink: {:?}", event);
+        //println!("Stdin Line Reader Event Sink: {:?}", event);
         eventstore_projection_sink.send(event.clone());
         concatview_projection_sink.send(event);
     });
     
     // let runtime = StdinLineReader::new();
-    let runtime = MockLineReader::new(&["asdf", "blah", "bloo"]);
+    let runtime = MockLineReader::new(&["foo", "bar", "fiz"]);
 
     let handle = thread::spawn(move || {
         runtime.run(ctx! {
@@ -263,3 +298,90 @@ fn threaded() {
     println!("EventStore: {:?}", *eventstore);
     println!("ConcatView: {:?}", *concatview);
 }
+
+
+// impl<TContext> Runtime<TContext> for StdoutLineWriter
+// where
+//     TContext: Source<TOutput=String>,
+// {
+//     type TResult = io::Result<()>;
+
+//     fn run(self, ctx: TContext) {//} -> Self::TResult {
+//         loop {
+//             println!("blocking on write receive");
+//             let value = ctx.next();
+//             let stdout = io::stdout();
+//             let mut lock = stdout.lock();
+//             let result = lock.write_all(value.as_bytes());
+//             if result.is_ok() { continue; }
+//             return result;
+//         }
+//     }
+// }
+
+// pub trait IORuntime {
+//     fn run(self) -> Self::TResult;
+// }
+
+// pub struct StdIORuntime {}
+
+// impl Source for StdIORuntime {
+//     type TOutput = String;
+
+//     fn next(&self) -> Self::TOutput {
+//         let stdin = io::stdin();
+//         self.send(StdinEvents::Listening);
+//         let lock = stdin.lock();
+//         for line in lock.lines() {
+//             match line {
+//                 Err (err) => {
+//                     // ctx.dispatch(error!("error reading stdin: {:?}", err));
+//                     break;
+//                 }
+//                 Ok (line) => {
+//                     // ctx.dispatch(trace!("received line [{:?}]", line));
+//                     // ctx.dispatch(StdinEvents::LineReceived (line));
+//                     self.send(StdinEvents::LineReceived (line));
+//                 }
+//             }
+//         }
+//         self.send(StdinEvents::Paused);
+//     }
+// }
+
+// impl Sink for StdIORuntime {
+//     type TInput = String;
+//     type TResult = Result<(), io::Error>;
+
+//     fn send(&self, value: Self::TInput) -> Self::TResult {
+//         println!("blocking on write receive");
+//         let stdout = io::stdout();
+//         let mut lock = stdout.lock();
+//         lock.write_all(value.as_bytes())
+//         // let result = lock.write_all(value.as_bytes());
+//         // if result.is_ok() { continue; }
+//         // return result;
+//     }
+// }
+
+// impl Runtime for StdIORuntime {
+// impl StdIORuntime {
+//     pub fn run(self) {
+//         loop {
+//             self.send(self.next());
+//         }
+//     }
+// }
+
+// impl<TContext> Runtime<TContext> for EventLoop
+// where
+//     TContext: Source<TOutput=T, TResult=()>, Dispa
+// {
+//     type TResult = ();
+
+//     fn run(self, ctx: TContext) -> Self::TResult {
+//         loop {
+//             ctx.dispatch(ctx.next());
+//         }
+//     }
+// }
