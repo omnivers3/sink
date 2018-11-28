@@ -14,14 +14,20 @@ pub mod vecsink;
 // Traits to be root exported
 // pub mod asyncsink;
 pub mod echo;
+// pub mod flatmap;
 pub mod map;
+pub mod optionmap;
+pub mod reduce;
 pub mod reflect;
 pub mod resultmap;
 pub mod sink;
 
 // pub use self::asyncsink::*;
 pub use self::echo::*;
+// pub use self::flatmap::*;
 pub use self::map::*;
+pub use self::optionmap::*;
+pub use self::reduce::*;
 pub use self::resultmap::*;
 pub use self::reflect::*;
 pub use self::sink::*;

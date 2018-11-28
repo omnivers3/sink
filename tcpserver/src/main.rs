@@ -40,23 +40,9 @@ use std::marker::{ PhantomData };
 #[derive(Clone, Debug)]
 pub enum StdinEvents {
     Listening,
-    // Terminated,
     LineReceived (String),
     Paused,
 }
-
-// #[derive(Debug)]
-// pub enum StdinErrors {
-//     AlreadyListening,
-// }
-
-// pub struct StdinBufferReader {
-
-// }
-
-// impl StdinBufferReader {
-//     pub fn new()
-// }
 
 pub struct StdoutLineWriter {
     stdout: Stdout,
@@ -140,6 +126,10 @@ where
     }
 }
 
+// [ () -> T ] [ T -> () ]
+// [ () -> T ] [ fn(T) -> U ] [ U -> () ]
+// [ () -> T ] [ fn(T) -> U ] [ fn(U) -> T ] [ T -> () ]
+
 impl<TContext, TSource> Runtime<TContext> for MockLineReader<TSource>
 where
     TContext: Dispatcher<LoggingEvents> + Dispatcher<StdinEvents>,
@@ -191,8 +181,184 @@ impl Source for FooSource {
 fn main() {
     env::EnvConfigProvider::new();
 
+    elm();
     // unthreaded();
-    threaded();
+    // threaded();
+}
+
+pub mod eventstore {
+    use super::{ ElmModel };
+
+    pub struct Model<TEvents> {
+        inner: Vec<TEvents>
+    }
+
+    impl<TEvents> Default for Model<TEvents> {
+        fn default() -> Self {
+            Model {
+                inner: Vec::new(),
+            }
+        }
+    }
+
+    impl<TEvents> ElmModel for Model<TEvents> {
+        type TEvents = TEvents;
+
+        fn update(&mut self, event: Self::TEvents) {
+            self.inner.push(event);
+        }
+    }
+}
+
+pub mod concatview {
+    use super::{ ElmModel };
+    use std::marker::{ PhantomData };
+    use std::fmt::{ Debug };
+
+    #[derive(Debug)]
+    pub enum Events {
+        Foo (String),
+    }
+
+    pub struct Model<TEvents> {
+        _events: PhantomData<TEvents>,
+        value: String,
+    }
+
+    impl<TEvents> Default for Model<TEvents> {
+        fn default() -> Self {
+            Model {
+                _events: PhantomData,
+                value: String::default(),
+            }
+        }
+    }
+
+    impl<TEvents> ElmModel for Model<TEvents>
+    where
+        TEvents: Debug,
+    {
+        type TEvents = TEvents;
+
+        fn update(&mut self, event: Self::TEvents) {
+            self.value = format!("{}-{:?}", self.value, event);
+        }
+    }
+}
+
+pub struct Model {
+    eventstore: eventstore::Model<StdinEvents>,// Vec<StdinEvents>,
+    concatview: concatview::Model<StdinEvents>,// String::default(),
+}
+
+impl Default for Model {
+    fn default() -> Self {
+        Model {
+            eventstore: eventstore::Model::default(),
+            concatview: concatview::Model::default(),
+        }
+    }
+}
+
+pub trait ElmModel {
+    type TEvents;
+
+    fn update(&mut self, event: Self::TEvents);
+}
+
+// impl<TEvents, TModel> Sink for TModel
+// where
+//     TModel: ElmModel<TEvents=TEvents>,
+// {
+//     type TInput = TEvents;
+//     type TResult = ();
+
+//     fn send(&self, )
+// }
+
+impl ElmModel for Model {
+    type TEvents = StdinEvents;
+
+    fn update(&mut self, event: Self::TEvents) {
+        self.eventstore.update(event.clone());
+        self.concatview.update(event);
+    }
+}
+
+type ElmRefCell<T: ElmModel> = RefCell<T>;
+
+// impl<TModel> Sink for ElmRefCell<TModel>
+// where
+//     TModel: ElmModel,
+// {
+//     type TInput = TModel::TEvents;
+//     type TResult = ();
+
+//     fn send(&self, event: Self::TInput) -> Self::TResult {
+//         self.borrow_mut().update(event);
+//     }
+// }
+
+pub fn parse_stdin(input: StdinEvents) -> Option<concatview::Events> {
+    match input {
+        StdinEvents::LineReceived (line) => {
+            if line.len() % 2 == 0 {
+                None
+            } else {
+                Some (concatview::Events::Foo(line))
+            }
+        }
+        _ => None
+    }
+}
+
+pub struct UpdateViewRuntime {
+}
+
+impl UpdateViewRuntime {
+    pub fn new() -> Self {
+        UpdateViewRuntime {
+        }
+    }
+}
+
+impl Sink for UpdateViewRuntime {
+    type TInput = StdinEvents;
+    type TResult = ();
+
+    fn send(&self, input: Self::TInput) -> Self::TResult {
+        println!("UpdateView Runtime");
+    }
+}
+
+fn elm() {
+    let logging_sink = Logging::new();
+
+    let model = RefCell::<Model>::default();
+
+    // let event_sink = FnSink::new(|event: StdinEvents| {
+    //     model.borrow_mut().update(event);
+    // });
+    let concat_event_sink = FnSink::new(|event: concatview::Events| {
+        println!("Concat View: {:?}", event);
+    });
+    let event_sink = concat_event_sink
+        .reduce()
+        .map(parse_stdin)
+        .map_result(|_| ());
+    // let event_sink = FnSink::new(|event: StdinEvents| {
+    //     eventstore_projection_sink.send(event.clone());
+    //     concatview_projection_sink.send(event);
+    // });
+    
+    // let source = StdinLineReader::new();
+    let source = MockLineReader::new(&["foo", "bar", "fiz"]);
+
+    source.bind(ctx! {
+        logging: LoggingEvents = logging_sink,
+        events: StdinEvents = event_sink,
+        // events: StdinEvents = UpdateViewRuntime{},
+    });
 }
 
 fn unthreaded() {
@@ -381,5 +547,3 @@ fn threaded() {
 //         loop {
 //             ctx.dispatch(ctx.next());
 //         }
-//     }
-// }

@@ -42,6 +42,21 @@ pub trait Runtime<TContext> {
     fn run(self, ctx: TContext);// -> Self::TResult;
 }
 
+pub trait RSource<TContext> {
+    // type TResult;
+
+    fn bind(self, ctx: TContext);// -> Self::TResult;
+}
+
+impl<T, TContext> RSource<TContext> for T
+where
+    T: Runtime<TContext>,
+{
+    fn bind(self, ctx: TContext) {
+        self.run(ctx)
+    }
+}
+
 pub trait SystemDef<TContext, TSystem> {
     fn bind(ctx: TContext) -> System<TContext, TSystem>;
 }
