@@ -2,7 +2,7 @@
 use logging::{ Data, Logging, LoggingEvents };
 // use sink::{ Dispatcher, Sink };
 // use sink::{ Sink, Source };
-use sink::{ Source };
+use sink::{ Source, UnitSource };
 // use sink::sink::{ Dispatcher };
 // use stdio::*;
 
@@ -127,12 +127,19 @@ pub fn main() {
     // logging_sink.send(trace!("Starting Domain Definition"));
 
     let source = Alternate::new();
+    // let source = UnitSource::new();
 
     let logging_ctx = ctx! {
         source: Option<()> = source,
         logging: LoggingEvents = logging_sink,
     };
 
+    let t = logging_ctx.next();
+    println!("Next: {:?}", t);
+    let t = logging_ctx.next();
+    println!("Next: {:?}", t);
+    let t = logging_ctx.next();
+    println!("Next: {:?}", t);
     let t = logging_ctx.next();
     println!("Next: {:?}", t);
 
