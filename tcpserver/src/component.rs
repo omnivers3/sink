@@ -4,6 +4,8 @@ use std::fmt;
 use logging::*;
 use sink::*;
 
+use std::marker::PhantomData;
+
 // /// An aggregate is a container which owns a source of truth or data set
 // pub trait Actor {
 //     type TCommands;
@@ -13,6 +15,50 @@ use sink::*;
 //     // fn update(&mut self, event: Self::TEvents);
 //     fn handle(&self, command: Self::TCommands) -> Result<Self::TEvents, Self::TErrors>;
 // }
+
+pub trait Runtime<TContext> {
+    fn run(self, ctx: TContext);
+}
+
+pub struct RuntimeWrapper<TContext, TRuntime>
+where
+    TRuntime: Runtime<TContext>,
+{
+    ctx: TContext,
+    runtime: TRuntime,
+}
+
+pub trait RuntimeExec {
+    fn run(self);
+}
+
+impl<TContext, TRuntime> RuntimeExec for RuntimeWrapper<TContext, TRuntime>
+where
+    TRuntime: Runtime<TContext>,
+{
+    fn run(self) {
+        self.runtime.run(self.ctx)
+    }
+}
+
+pub trait RuntimeDef<TContext, TRuntime>
+where
+    TRuntime: Runtime<TContext>,
+{
+    fn bind(self, ctx: TContext) -> RuntimeWrapper<TContext, TRuntime>;
+}
+
+impl<TContext, TRuntime> RuntimeDef<TContext, TRuntime> for TRuntime
+where
+    TRuntime: Runtime<TContext>,
+{
+    fn bind(self, ctx: TContext) -> RuntimeWrapper<TContext, TRuntime> {
+        RuntimeWrapper {
+            ctx,
+            runtime: self,
+        }
+    }
+}
 
 pub struct System<TContext, TSystem> {
     context: TContext,
@@ -36,27 +82,6 @@ impl<TContext, TSystem> System<TContext, TSystem> {
     }
 }
 
-pub trait Runtime<TContext> {
-    // type TResult;
-
-    fn run(self, ctx: TContext);// -> Self::TResult;
-}
-
-pub trait RSource<TContext> {
-    // type TResult;
-
-    fn bind(self, ctx: TContext);// -> Self::TResult;
-}
-
-impl<T, TContext> RSource<TContext> for T
-where
-    T: Runtime<TContext>,
-{
-    fn bind(self, ctx: TContext) {
-        self.run(ctx)
-    }
-}
-
 pub trait SystemDef<TContext, TSystem> {
     fn bind(ctx: TContext) -> System<TContext, TSystem>;
 }
@@ -66,7 +91,7 @@ impl<TSystem, TContext, TCommands, TEvents, TErrors> SystemDef<TContext, RefCell
 where
     TContext: Dispatcher<LoggingEvents> + Dispatcher<TEvents> + Dispatcher<TErrors>,
     // T: Actor<TCommands = TCommands, TEvents = TEvents, TErrors = TErrors> + Initializable,
-    TSystem: Sink<TInput=TCommands, TResult=Result<TEvents, TErrors>> + Initializable,
+    TSystem: Sink<TInput=TCommands, TResult=Result<TEvents, TErrors>> + Default,
 {
     fn bind(ctx: TContext) -> System<TContext, RefCell<TSystem>> {
         System::new(ctx, Self::default())

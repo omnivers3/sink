@@ -2,9 +2,11 @@
 // extern crate log;
 extern crate env_logger;
 
-// #[macro_use]
+#[macro_use]
 extern crate logging;
 extern crate sink;
+
+pub mod aggregates;
 
 pub mod component;
 // pub mod logging;
@@ -13,8 +15,9 @@ pub mod http;
 pub mod net;
 pub mod server;
 pub mod socket_addrs;
+pub mod stdio;
 
-pub mod product;
+// pub mod product;
 
 use sink::*;
 use std::io;

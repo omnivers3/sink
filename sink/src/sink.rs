@@ -17,27 +17,6 @@ pub trait Sink {
     fn send(&self, input: Self::TInput) -> Self::TResult;
 }
 
-// pub trait SinkContainer<'a, TInput, TResult> {
-//     fn sink(&'a self) -> &'a Sink<TInput=TInput, TResult=TResult>;
-// }
-
-// pub trait IntoSink<TInput, TResult> {
-//     fn as_sink<'a>(&'a self) -> &'a Sink<TInput=TInput, TResult=TResult>;
-// }
-
-// pub trait Dispatcher<TInput, TResult> {
-//     fn dispatch(&self, TInput) -> TResult;
-// }
-
-// impl<TSink, TInput, TResult> Dispatcher<TInput, TResult> for TSink
-// where
-//     TSink: Sink<TInput = TInput, TResult = TResult>,
-// {
-//     fn dispatch(&self, input: TInput) -> TResult {
-//         self.send(input)
-//     }
-// }
-
 pub trait Dispatcher<TInput> {
     fn dispatch(&self, TInput);
 }
@@ -60,21 +39,29 @@ where
 //     }
 // }
 
-// impl<'a, TSink, TInput, TResult> Dispatcher<TInput, TResult> for TSink
-// where
-//     TSink: SinkContainer<'a, TInput, TResult>,
-// {
-//     fn dispatch(&self, input: TInput) -> TResult {
-//         self.sink().send(input)
-//     }
-// }
-
 pub trait Source {
     type TOutput;
 
     fn next(&self) -> Self::TOutput;
 }
 
+pub struct UnitSource {}
+
+impl UnitSource {
+    pub fn new() -> Self {
+        UnitSource {}
+    }
+}
+
+impl Source for UnitSource {
+    type TOutput = ();
+
+    fn next(&self) -> Self::TOutput {
+        ()
+    }
+}
+
+// Enables a type to be defaulted and then overridden if mutable
 pub trait Initializable: Default {
     type TState;
 
