@@ -17,6 +17,36 @@ pub trait Sink {
     fn send(&self, input: Self::TInput) -> Self::TResult;
 }
 
+// pub type UnitSink<TInput> = Sink<TInput=TInput, TResult=()>;
+
+// pub trait UnitSink {
+//     type TInput;
+
+//     fn send(&self, input: Self::TInput);
+// }
+
+// impl<T, TInput> UnitSink for T
+// where
+//     T: Sink<TInput=TInput, TResult=()>,
+// {
+//     type TInput = TInput;
+//     // type TResult = ();
+
+//     fn send(&self, input: Self::TInput) {
+//         self.send(input)
+//         // (self as &Sink<TInput=Self::TInput, TResult=()>).send(input)
+//     }
+// }
+
+// impl<TInput> Sink for UnitSink<TInput=TInput> {
+//     type TInput = TInput;
+//     type TResult = ();
+
+//     fn send(&self, input: Self::TInput) -> Self::TResult {
+//         (self as &UnitSink<TInput=Self::TInput>).send(input)
+//     }
+// }
+
 pub trait Dispatcher<TInput> {
     fn dispatch(&self, TInput);
 }
@@ -27,6 +57,34 @@ where
 {
     fn dispatch(&self, input: TInput) {
         self.send(input)
+    }
+}
+
+// pub trait System {
+//     type TInput;
+//     type TResult;
+//     type TOutput;
+
+//     fn send(&self, input: Self::TInput) -> Self::TResult;
+// }
+
+pub struct System {
+    
+}
+
+impl System {
+    pub fn run(self) {}
+}
+
+pub trait IntoSystem {
+    type TInput;
+    type TOutput;
+
+    fn into_system(self, ctx: impl Sink<TInput=Self::TOutput, TResult=()>) -> System
+    where
+        Self: Sized,
+    {
+        System {}
     }
 }
 

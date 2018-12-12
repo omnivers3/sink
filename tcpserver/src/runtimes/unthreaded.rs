@@ -48,7 +48,7 @@ pub fn main() {
         logging: LoggingEvents = logging_sink,
         events: StdinEvents = event_sink,
     });
-    def.run();
+    // def.run();
 
     // runtime.run(ctx! {
     //     logging: LoggingEvents = logging_sink,

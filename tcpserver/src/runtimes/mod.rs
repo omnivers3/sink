@@ -2,9 +2,9 @@ pub mod concatview;
 pub mod eventstore;
 
 pub mod domain;
-pub mod elm;
-pub mod threaded;
-pub mod unthreaded;
+// pub mod elm;
+// pub mod threaded;
+// pub mod unthreaded;
 
 use super::stdio::*;
 
@@ -83,7 +83,7 @@ impl ElmModel for Model {
 
 pub fn parse_stdin(input: StdinEvents) -> Option<concatview::Events> {
     match input {
-        StdinEvents::LineReceived (line) => {
+        StdinEvents::LineReceived (_, line) => {
             if line.len() % 10 == 0 {
                 None
             } else if line.len() % 2 == 0 {

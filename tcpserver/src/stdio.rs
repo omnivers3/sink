@@ -1,191 +1,288 @@
-use component::{ Runtime };
-use logging::{ Data, LoggingEvents };
-use sink::*;
-use fnsink::{ FnSink };
-
-use std::fmt;
-use std::io;
-use std::io::{ BufRead, Stdin, Stdout, Write };
-use std::time::{ Duration };
-use std::thread;
+// pub use component::{ Actor, Runtime };
+// pub use sink::*;
+// pub use sink::{ Dispatcher };
 
 #[derive(Clone, Debug)]
 pub enum StdinCommands {
-    Start,
+    Initialize,
+    Await,
 }
 
 #[derive(Clone, Debug)]
 pub enum StdinEvents {
-    Listening,
-    LineReceived (String),
-    Stopped,
+    Initialized,
+    Waiting,
+    LineReceived (usize, String),
 }
 
 #[derive(Clone, Debug)]
-pub enum Events {
-    Logging (LoggingEvents),
-    Stdin (StdinEvents),
+pub enum StdinErrors {
+    AlreadyInitialized,
+    NotInitialized,
+    IoError (String),
 }
 
-#[derive(Clone, Debug)]
-pub struct StdinLineReader {}
+pub mod console {
+    use component::{ Actor, ActorState };
+    use sink::*;
 
-impl StdinLineReader {
-    pub fn new() -> Self {
-        StdinLineReader {}
+    use stdio::*;
+    use stdio::StdinCommands::*;
+
+    #[derive(Debug)]
+    pub struct State {
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct Config {}
+
+    impl Config {
+        pub fn new() -> Self {
+            Config {}
+        }
+    }
+
+    impl ActorState<Config> for State {
+        fn from(_config: &Config) -> Self {
+            State {}
+        }
+    }
+
+    impl Actor for Config {
+        type TState = State;
+        type TCommands = ();
+        type TEvents = StdinCommands;
+        type TErrors = ();
+        type TResult = ();
+
+        fn handle(&self,
+            _state: &mut Self::TState,
+            _command: (),
+            events: impl Sink<TInput=Self::TEvents, TResult=()>,
+            _errors: impl Sink<TInput=Self::TErrors, TResult=()>
+        ) -> Self::TResult {
+            events.send(Initialize);
+            loop {
+                events.send(Await);
+            }
+        }
     }
 }
 
-impl<TContext> Runtime<TContext> for StdinLineReader
-where
-    TContext: Dispatcher<LoggingEvents> + Dispatcher<StdinEvents>,
-{
-    fn run(self, ctx: TContext) {
-        let stdin = io::stdin();
-        ctx.dispatch(trace!("blocking on stdin"));
-        ctx.dispatch(StdinEvents::Listening);
-        let lock = stdin.lock();
-        for line in lock.lines() {
-            match line {
-                Err (err) => {
-                    ctx.dispatch(error!("error reading stdin: {:?}", err));
-                    break;
+pub mod linereader {
+    use std::io;
+    use std::io::{ BufRead };//, Stdin, Stdout, Write };
+
+    use component::{ Actor, ActorState };
+    use sink::*;
+
+    use stdio::*;
+    use stdio::StdinCommands::*;
+    use stdio::StdinEvents::*;
+    use stdio::StdinErrors::*;
+
+    #[derive(Debug)]
+    pub struct State {
+        stdin: Option<io::Stdin>,
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct Config {}
+
+    impl Config {
+        pub fn new() -> Self {
+            Config {}
+        }
+    }
+
+    impl ActorState<Config> for State {
+        fn from(_config: &Config) -> Self {
+            State {
+                stdin: None,
+            }
+        }
+    }
+
+    impl Actor for Config {
+        type TState = State;
+        type TCommands = StdinCommands;
+        type TEvents = StdinEvents;
+        type TErrors = StdinErrors;
+        type TResult = ();
+
+        fn handle(&self,
+            state: &mut Self::TState,
+            command: Self::TCommands,
+            events: impl Sink<TInput=Self::TEvents, TResult=()>,
+            errors: impl Sink<TInput=Self::TErrors, TResult=()>
+        ) -> Self::TResult {
+            if let Some (ref mut stdin) = state.stdin {
+                match command {
+                    Initialize => {
+                        errors.send(AlreadyInitialized);
+                    }
+                    Await => {
+                        events.send(Waiting);
+                        let mut buffer = String::default();
+                        match { stdin.lock().read_line(&mut buffer) } {
+                            Ok (len) => {
+                                events.send(LineReceived (len, buffer));
+                            }
+                            Err (err) => {
+                                errors.send(IoError (format!("{:?}", err)));
+                            }
+                        }
+                    }
                 }
-                Ok (line) => {
-                    ctx.dispatch(trace!("received line [{:?}]", line));
-                    ctx.dispatch(StdinEvents::LineReceived (line));
+            } else {
+                match command {
+                    Initialize => {
+                        state.stdin = Some(io::stdin());
+                        events.send(Initialized);
+                    }
+                    Await => {
+                        errors.send(NotInitialized);
+                    }
                 }
             }
         }
-        ctx.dispatch(StdinEvents::Stopped);
     }
 }
 
-pub struct MockLineReader<TSource>
-where
-    TSource: IntoIterator,
-    TSource::Item: ToString,
-{
-    source: TSource,
-    delay_ms: u32,
-}
+pub mod mocklinereader {
+    use std::iter::Iterator;
+    use std::time::{ Duration };
+    use std::thread;
 
-impl<TSource> MockLineReader<TSource>
-where
-    TSource: IntoIterator,
-    TSource::Item: ToString,
-{
-    pub fn new(source: TSource) -> Self {
-        MockLineReader {
-            source,
-            delay_ms: 10,
+    use component::{ Actor, ActorState };
+    use sink::*;
+
+    use stdio::*;
+    use stdio::StdinCommands::*;
+    use stdio::StdinEvents::*;
+    use stdio::StdinErrors::*;
+
+    #[derive(Clone, Debug)]
+    pub struct Config {
+        values: Vec<String>,
+        delay_ms: u32,
+    }
+
+    impl Config {
+        pub fn new<TSource>(source: TSource) -> Self
+        where
+            TSource: IntoIterator,
+            TSource::Item: ToString,
+        {
+            let mut values = vec![
+                "foo".to_owned(),
+                "bar".to_owned(),
+                "baz".to_owned(),
+            ];
+            let mut source: Vec<String> = source
+                .into_iter()
+                .map(|i| i.to_string())
+                .collect();
+            values.append(&mut source);
+            let values = values.iter().map(|i| format!{"{}\n", i}).collect();
+            
+            Config {
+                values,
+                delay_ms: 10,
+            }
+        }
+    }
+
+    pub struct State {
+        values: Vec<String>,
+        index: usize,
+        initialized: bool,
+    }
+
+    impl ActorState<Config> for State {
+        fn from(config: &Config) -> Self {
+            State {
+                values: config.values.clone(),
+                index: 0,
+                initialized: false,
+            }
+        }
+    }
+
+    impl Iterator for State {
+        type Item = String;
+
+        fn next(&mut self) -> Option<String> {
+            if self.values.len() <= self.index {
+                None
+            } else {
+                let result = self.values[self.index].to_owned();
+                self.index += 1;
+                Some (result)
+            }
+        }
+    }
+
+    impl Actor for Config {
+        type TState = State;
+        type TCommands = StdinCommands;
+        type TEvents = StdinEvents;
+        type TErrors = StdinErrors;
+        type TResult = ();
+
+        fn handle(&self,
+            state: &mut Self::TState,
+            command: Self::TCommands,
+            events: impl Sink<TInput=Self::TEvents, TResult=()>,
+            errors: impl Sink<TInput=Self::TErrors, TResult=()>
+        ) -> Self::TResult {
+            match (command, state.initialized) {
+                (Initialize, true) => {
+                    errors.send(AlreadyInitialized)
+                }
+                (Initialize, false) => {
+                    state.initialized = true;
+                    events.send(Initialized);
+                }
+                (Await, false) => {
+                    errors.send(NotInitialized)
+                }
+                (Await, true) => {
+                    events.send(Waiting);
+                    thread::sleep(Duration::from_millis(self.delay_ms.into()));
+                    if let Some (line) = state.next() {
+                        events.send(LineReceived (line.len(), line));
+                    } else {
+                        thread::park();
+                    }
+                }
+            }
         }
     }
 }
 
-impl<TContext, TSource> Runtime<TContext> for MockLineReader<TSource>
-where
-    TContext: Dispatcher<LoggingEvents> + Dispatcher<StdinEvents>,
-    TSource: IntoIterator,
-    TSource::Item: ToString,
-{
-    fn run(self, ctx: TContext) {
-        let delay = self.delay_ms;
-        let send = | value: String | {
-            thread::sleep(Duration::from_millis(delay.into()));
-            ctx.dispatch(StdinEvents::LineReceived (value));
-            ctx.dispatch(StdinEvents::Listening);
-        };
-        ctx.dispatch(trace!("producing mock lines"));
-        ctx.dispatch(StdinEvents::Listening);
-        send("foo".to_owned());
-        send("bar".to_owned());
-        send("baz".to_owned());
-        for line in self.source.into_iter() {
-            send(line.to_string());
-        }
-        ctx.dispatch(StdinEvents::Stopped);
-    }
-}
+// pub mod stdoutlinewriter {
 
-pub struct StdoutLineWriter {
-    stdout: Stdout,
-}
-
-impl StdoutLineWriter {
-    pub fn new() -> Self {
-        StdoutLineWriter {
-            stdout: io::stdout(),
-        }
-    }
-}
-
-impl Sink for StdoutLineWriter {
-    type TInput = String;
-    type TResult = Result<(), io::Error>;
-
-    fn send(&self, value: Self::TInput) -> Self::TResult {
-        let mut lock = self.stdout.lock();
-        write!(lock, "{}\n", value)
-    }
-}
-
-// pub struct Actor<'a, TContext> {
-//     ctx: &'a TContext,
-// }
-
-// impl<'a, TContext> Actor<'a, TContext> {
-//     pub fn new(ctx: &'a TContext) -> Self {
-//         Actor {
-//             ctx,
-//         }
+//     pub struct State {
+//         stdout: Stdout,
 //     }
-// }
 
-// // pub trait ActorDef<TContext> {
-// //     fn bind<'a>(self, ctx: &'a TContext) -> Actor<'a, TContext>;
-// // }
-
-// // impl<TContext> ActorDef<TContext> for StdinLineReader
-// // where
-// //     TContext: Dispatcher<LoggingEvents> + Dispatcher<StdinEvents>,
-// // {
-// //     fn bind<'a>(self, ctx: &'a TContext) -> Actor<'a, TContext> {
-// //         Actor::new(ctx)
-// //     }
-// // }
-
-// pub trait ActorDef<TContext>
-// where
-//     Self: Sized,
-// {
-//     fn bind<'a>(self, ctx: &'a TContext) -> Actor<'a, TContext> {
-//         Actor::new(ctx)
-//     }
-
-//     fn run<'a>(&self, ctx: &'a TContext);
-// }
-
-// impl<TContext> ActorDef<TContext> for StdinLineReader
-// where
-//     TContext: Dispatcher<LoggingEvents> + Dispatcher<StdinEvents>,
-// {
-//     fn run<'a>(&self, ctx: &'a TContext) {
-//         ctx.dispatch(trace!("blocking on stdin"));
-//         ctx.dispatch(StdinEvents::Listening);
-//         let lock = self.stdin.lock();
-//         for line in lock.lines() {
-//             match line {
-//                 Err (err) => {
-//                     ctx.dispatch(error!("error reading stdin: {:?}", err));
-//                     break;
-//                 }
-//                 Ok (line) => {
-//                     ctx.dispatch(trace!("received line [{:?}]", line));
-//                     ctx.dispatch(StdinEvents::LineReceived (line));
-//                 }
+//     impl StdoutLineWriter {
+//         pub fn new() -> Self {
+//             StdoutLineWriter {
+//                 stdout: io::stdout(),
 //             }
 //         }
-//         ctx.dispatch(StdinEvents::Paused);
 //     }
+
+//     impl Sink for StdoutLineWriter {
+//         type TInput = String;
+//         type TResult = Result<(), io::Error>;
+
+//         fn send(&self, value: Self::TInput) -> Self::TResult {
+//             let mut lock = self.stdout.lock();
+//             write!(lock, "{}\n", value)
+//         }
+//     }
+
 // }

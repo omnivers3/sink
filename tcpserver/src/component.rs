@@ -4,61 +4,68 @@ use std::fmt;
 use logging::*;
 use sink::*;
 
-use std::marker::PhantomData;
+pub trait ActorState<TConfig> {
+    fn from(config: &TConfig) -> Self;
+}
 
-// /// An aggregate is a container which owns a source of truth or data set
-// pub trait Actor {
-//     type TCommands;
-//     type TEvents;
-//     type TErrors;
+pub trait Actor {
+    type TState;
+    type TCommands;
+    type TEvents;
+    type TErrors;
+    type TResult;
 
-//     // fn update(&mut self, event: Self::TEvents);
-//     fn handle(&self, command: Self::TCommands) -> Result<Self::TEvents, Self::TErrors>;
+    fn handle(&self,
+        state: &mut Self::TState,
+        command: Self::TCommands,
+        events: impl Sink<TInput=Self::TEvents, TResult=()>,
+        errors: impl Sink<TInput=Self::TErrors, TResult=()>
+    ) -> Self::TResult;
+}
+
+// pub trait Runtime<TContext> {
+//     fn run(self, ctx: TContext);
 // }
 
-pub trait Runtime<TContext> {
-    fn run(self, ctx: TContext);
-}
+// pub struct RuntimeWrapper<TContext, TRuntime>
+// where
+//     TRuntime: Runtime<TContext>,
+// {
+//     ctx: TContext,
+//     runtime: TRuntime,
+// }
 
-pub struct RuntimeWrapper<TContext, TRuntime>
-where
-    TRuntime: Runtime<TContext>,
-{
-    ctx: TContext,
-    runtime: TRuntime,
-}
+// pub trait RuntimeExec {
+//     fn run(self);
+// }
 
-pub trait RuntimeExec {
-    fn run(self);
-}
+// impl<TContext, TRuntime> RuntimeExec for RuntimeWrapper<TContext, TRuntime>
+// where
+//     TRuntime: Runtime<TContext>,
+// {
+//     fn run(self) {
+//         self.runtime.run(self.ctx)
+//     }
+// }
 
-impl<TContext, TRuntime> RuntimeExec for RuntimeWrapper<TContext, TRuntime>
-where
-    TRuntime: Runtime<TContext>,
-{
-    fn run(self) {
-        self.runtime.run(self.ctx)
-    }
-}
+// pub trait RuntimeDef<TContext, TRuntime>
+// where
+//     TRuntime: Runtime<TContext>,
+// {
+//     fn bind(self, ctx: TContext) -> RuntimeWrapper<TContext, TRuntime>;
+// }
 
-pub trait RuntimeDef<TContext, TRuntime>
-where
-    TRuntime: Runtime<TContext>,
-{
-    fn bind(self, ctx: TContext) -> RuntimeWrapper<TContext, TRuntime>;
-}
-
-impl<TContext, TRuntime> RuntimeDef<TContext, TRuntime> for TRuntime
-where
-    TRuntime: Runtime<TContext>,
-{
-    fn bind(self, ctx: TContext) -> RuntimeWrapper<TContext, TRuntime> {
-        RuntimeWrapper {
-            ctx,
-            runtime: self,
-        }
-    }
-}
+// impl<TContext, TRuntime> RuntimeDef<TContext, TRuntime> for TRuntime
+// where
+//     TRuntime: Runtime<TContext>,
+// {
+//     fn bind(self, ctx: TContext) -> RuntimeWrapper<TContext, TRuntime> {
+//         RuntimeWrapper {
+//             ctx,
+//             runtime: self,
+//         }
+//     }
+// }
 
 pub struct System<TContext, TSystem> {
     context: TContext,

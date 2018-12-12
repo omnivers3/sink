@@ -1,4 +1,6 @@
 
+// TODO: Remvoe names from sinks as duplicate types would break dispatcher side anyhow
+
 #[macro_export(local_inner_macros)]
 macro_rules! _ctx_struct {
     // Completed macro accumulation - No source specified
@@ -14,14 +16,6 @@ macro_rules! _ctx_struct {
                 Context {
                     $($name),*
                 }
-            }
-        }
-
-        impl<'a> Source for Context<'a> {
-            type TOutput = ();
-
-            fn next(&self) -> Self::TOutput {
-                ()
             }
         }
     };

@@ -1,8 +1,8 @@
 // #[macro_use]
 // extern crate log;
-#[macro_use]
+// #[macro_use]
 extern crate logging;
-#[macro_use]
+// #[macro_use]
 extern crate sink;
 extern crate tcp_server;
 
