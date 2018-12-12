@@ -28,13 +28,13 @@ pub struct ActorSystem<'a, TState, TCommands, TResult, TEvents, TErrors, TActor:
 where
     TActor: Actor<TState=TState, TCommands=TCommands, TResult=TResult, TEvents=TEvents, TErrors=TErrors>,
     TState: ActorState<TActor>,
-    &'a TEventSink: Sink<TInput=TEvents, TResult=()>,
-    &'a TErrorSink: Sink<TInput=TErrors, TResult=()>,
+    TEventSink: &'a Sink<TInput=TEvents, TResult=()>,
+    TErrorSink: &'a Sink<TInput=TErrors, TResult=()>,
 {
     actor: TActor,
     state: RefCell<TState>,
-    event_sink: &'a TEventSink,
-    error_sink: &'a TErrorSink,
+    event_sink: TEventSink,
+    error_sink: TErrorSink,
 }
 
 impl<'a, TState, TCommands, TResult, TEvents, TErrors, TActor: 'a, TEventSink: 'a, TErrorSink: 'a> ActorSystem<'a, TState, TCommands, TResult, TEvents, TErrors, TActor, TEventSink, TErrorSink>
