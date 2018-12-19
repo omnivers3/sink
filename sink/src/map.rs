@@ -2,6 +2,7 @@ use super::*;
 use lib::core::marker::PhantomData;
 
 /// Map transforms incomming data from source type to the type epxected by the wrapped Sink.
+#[derive(Clone, Debug)]
 pub struct Map<FMap, TInput, UInput, TResult, TSink>
 where
     FMap: Fn(UInput) -> TInput,

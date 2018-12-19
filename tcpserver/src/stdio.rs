@@ -22,6 +22,63 @@ pub enum StdinErrors {
     IoError (String),
 }
 
+pub enum Sink2Signal<TSink0, TSink1>
+where
+    TSink0: sink::Sink,
+    TSink1: sink::Sink,
+{
+    Sink0 (TSink0::TInput),
+    Sink1 (TSink1::TInput),
+}
+
+pub enum Sink2Result<TSink0, TSink1>
+where
+    TSink0: sink::Sink,
+    TSink1: sink::Sink,
+{
+    Sink0 (TSink0::TResult),
+    Sink1 (TSink1::TResult),
+}
+
+pub struct Sink2<'a, 'b, TSink0, TSink1>(pub &'a TSink0, pub &'b TSink1);
+
+// impl<'a, 'b, TSink0, TSink1, TTarget> From<Sink2<'b, 'a, TSink1, TSink0>> for TTarget {
+//     fn from(source: Sink2<'b, 'a, TSink1, TSink0>) -> Sink2<'a, 'b, TSink0, TSink1> {
+//         let (sink1, sink0) = source;
+//         Sink2(sink0, sink1)
+//     }
+// }
+
+impl<'a, 'b, TSink0, TSink1> Sink2<'a, 'b, TSink0, TSink1> {
+    pub fn new(sink0: &'a TSink0, sink1: &'b TSink1) -> Self {
+        Sink2 (sink0, sink1)
+    }
+
+    pub fn spread(&self) -> (&TSink0, &TSink1) {
+        (self.0, self.1)
+    }
+
+    pub fn swap(&self) -> Sink2<'b, 'a, TSink1, TSink0> {
+        Sink2::new(self.1, self.0)
+    }
+}
+
+impl<'a, 'b, TSink0, TSink1> sink::Sink for Sink2<'a, 'b, TSink0, TSink1>
+where
+    TSink0: sink::Sink,
+    TSink1: sink::Sink,
+{
+    type TInput = Sink2Signal<TSink0, TSink1>;
+    type TResult = Sink2Result<TSink0, TSink1>;
+
+    fn send(&self, input: Sink2Signal<TSink0, TSink1>) -> Self::TResult {
+        match input {
+            Sink2Signal::Sink0 (input) => Sink2Result::Sink0(self.0.send(input)),
+            Sink2Signal::Sink1 (input) => Sink2Result::Sink1(self.1.send(input)), 
+        }
+    }
+}
+
 pub mod console {
     use component::{ Actor, ActorState };
     use sink::*;
@@ -29,7 +86,7 @@ pub mod console {
     use stdio::*;
     use stdio::StdinCommands::*;
 
-    #[derive(Debug)]
+    #[derive(Clone, Debug)]
     pub struct State {
     }
 
@@ -58,11 +115,16 @@ pub mod console {
         fn handle(&self,
             _state: &mut Self::TState,
             _command: (),
-            events: impl Sink<TInput=Self::TEvents, TResult=()>,
-            _errors: impl Sink<TInput=Self::TErrors, TResult=()>
+            events: &impl Sink<TInput=Self::TEvents, TResult=()>,
+            _errors: &impl Sink<TInput=Self::TErrors, TResult=()>
         ) -> Self::TResult {
+            let mut count = 2;
             events.send(Initialize);
             loop {
+                if count <= 0 {
+                    break;
+                }
+                count -= 1;
                 events.send(Await);
             }
         }
@@ -113,8 +175,8 @@ pub mod linereader {
         fn handle(&self,
             state: &mut Self::TState,
             command: Self::TCommands,
-            events: impl Sink<TInput=Self::TEvents, TResult=()>,
-            errors: impl Sink<TInput=Self::TErrors, TResult=()>
+            events: &impl Sink<TInput=Self::TEvents, TResult=()>,
+            errors: &impl Sink<TInput=Self::TErrors, TResult=()>
         ) -> Self::TResult {
             if let Some (ref mut stdin) = state.stdin {
                 match command {
@@ -193,6 +255,7 @@ pub mod mocklinereader {
         }
     }
 
+    #[derive(Clone, Debug)]
     pub struct State {
         values: Vec<String>,
         index: usize,
@@ -233,8 +296,8 @@ pub mod mocklinereader {
         fn handle(&self,
             state: &mut Self::TState,
             command: Self::TCommands,
-            events: impl Sink<TInput=Self::TEvents, TResult=()>,
-            errors: impl Sink<TInput=Self::TErrors, TResult=()>
+            events: &impl Sink<TInput=Self::TEvents, TResult=()>,
+            errors: &impl Sink<TInput=Self::TErrors, TResult=()>
         ) -> Self::TResult {
             match (command, state.initialized) {
                 (Initialize, true) => {
@@ -260,6 +323,67 @@ pub mod mocklinereader {
         }
     }
 }
+
+// pub mod temp {
+
+//     pub enum Events1 {}
+
+//     pub enum Events2 {}
+
+//     pub enum EventsUnion {
+//         Source1 (Events1),
+//         Source2 (Events2),
+//     }
+
+//     pub enum Events3 {}
+
+//     pub struct Config {}
+
+//     impl Config {
+//         pub fn new() -> Self {
+//             Config {}
+//         }
+//     }
+
+//     pub trait Temp {
+
+//     }
+
+//     impl Temp for Config {
+//         fn handle(&self,
+//             state: &mut TState,// TODO: &mut State?
+//             signal: // TODO: Something has aggregated events into a single stream for me, thanks!
+//             events: // TODO: I can send events on several streams that were provided to me
+//         ) -> () {
+//             match signal {
+//                 Source1 (signal) => match signal {
+//                     self.handle(state, signal, events);
+//                 }
+//                 Source2 (signal) => match signal {
+//                     self.handle(state, signal, events);
+//                 }
+//             }
+//         }
+//     }
+
+//     impl Temps<Events1> for Config {
+//         fn handle(&self,
+//             signal: //
+//             Sinks (events, errors): //
+//         ) -> () {
+//             match signal {
+//                 A => {
+//                     ...
+//                     events.send(foo);
+//                 }
+//                 B => {
+//                     ...
+//                     errors.send(bar);
+//                 }
+//             }
+//         }
+//     }
+// }
 
 // pub mod stdoutlinewriter {
 

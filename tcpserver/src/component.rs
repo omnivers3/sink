@@ -18,8 +18,8 @@ pub trait Actor {
     fn handle(&self,
         state: &mut Self::TState,
         command: Self::TCommands,
-        events: impl Sink<TInput=Self::TEvents, TResult=()>,
-        errors: impl Sink<TInput=Self::TErrors, TResult=()>
+        events: &impl Sink<TInput=Self::TEvents, TResult=()>,
+        errors: &impl Sink<TInput=Self::TErrors, TResult=()>
     ) -> Self::TResult;
 }
 

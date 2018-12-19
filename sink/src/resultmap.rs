@@ -2,6 +2,7 @@ use super::*;
 use lib::core::marker::PhantomData;
 
 /// Map transforms sink results.
+#[derive(Clone, Debug)]
 pub struct ResultMap<FMap, TInput, TResult, UResult, TSink>
 where
     FMap: Fn(TResult) -> UResult,

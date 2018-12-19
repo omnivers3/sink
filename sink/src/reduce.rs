@@ -2,6 +2,7 @@ use super::*;
 use lib::core::marker::PhantomData;
 
 /// Reduce dispatches Option Some(inputs) into a nested sink discarding None
+#[derive(Clone, Debug)]
 pub struct Reduce<TInput, TResult, TSink>
 where
     TSink: Sink<TInput = TInput, TResult = TResult> + Sized,

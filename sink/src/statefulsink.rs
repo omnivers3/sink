@@ -3,6 +3,7 @@ use sink::Sink;
 
 /// Sink implementation which owns an internal state that is made available to
 /// the provided handler when values are sent to it
+#[derive(Clone, Debug)]
 pub struct StatefulSink<FHandler, TState, TInput, TResult>
 where
     FHandler: Fn(&TState, TInput) -> TResult,

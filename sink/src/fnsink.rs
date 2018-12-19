@@ -3,6 +3,7 @@ use sink::Sink;
 
 /// FnSink is a simple struct which captures a provided handler function and routes
 /// dispatched data into that handler
+#[derive(Clone, Debug)]
 pub struct FnSink<FHandler, TInput, TResult>
 where
     FHandler: Fn(TInput) -> TResult,

@@ -1,6 +1,7 @@
 use super::*;
 use lib::core::marker::PhantomData;
 
+#[derive(Clone, Debug)]
 pub struct Reflect<TInput, TResult, TSink>
 where
     TSink: Sink<TInput = TInput, TResult = TResult> + Sized,

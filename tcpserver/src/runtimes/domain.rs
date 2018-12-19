@@ -2,8 +2,11 @@ use component::{ Actor, ActorState };
 use sink::{ Sink };
 use sink::fnsink::{ FnSink };
 use stdio::*;
+use std::sync::{ Arc, Mutex };
 
-use std::cell::{ RefCell };
+use std::cell::{ UnsafeCell, RefCell };
+use std::rc::{ Rc };
+// use std::cell::Cell;
 // use std::fmt;
 
 pub struct SinkSystem<TSignal, TResult, TSink>
@@ -24,30 +27,31 @@ where
     }
 }
 
-pub struct ActorSystem<'a, TState, TCommands, TResult, TEvents, TErrors, TActor: 'a, TEventSink: 'a, TErrorSink: 'a>
+#[derive(Clone)]
+pub struct ActorSystem<'a, 'b, TState, TCommands, TResult, TEvents, TErrors, TActor, TEventSink, TErrorSink>
 where
     TActor: Actor<TState=TState, TCommands=TCommands, TResult=TResult, TEvents=TEvents, TErrors=TErrors>,
     TState: ActorState<TActor>,
-    TEventSink: &'a Sink<TInput=TEvents, TResult=()>,
-    TErrorSink: &'a Sink<TInput=TErrors, TResult=()>,
+    TEventSink: Sink<TInput=TEvents, TResult=()>,
+    TErrorSink: Sink<TInput=TErrors, TResult=()>,
 {
     actor: TActor,
     state: RefCell<TState>,
-    event_sink: TEventSink,
-    error_sink: TErrorSink,
+    event_sink: &'a TEventSink,
+    error_sink: &'b TErrorSink,
 }
 
-impl<'a, TState, TCommands, TResult, TEvents, TErrors, TActor: 'a, TEventSink: 'a, TErrorSink: 'a> ActorSystem<'a, TState, TCommands, TResult, TEvents, TErrors, TActor, TEventSink, TErrorSink>
+impl<'a, 'b, TState, TCommands, TResult, TEvents, TErrors, TActor, TEventSink, TErrorSink> ActorSystem<'a, 'b, TState, TCommands, TResult, TEvents, TErrors, TActor, TEventSink, TErrorSink>
 where
     TActor: Actor<TState=TState, TCommands=TCommands, TResult=TResult, TEvents=TEvents, TErrors=TErrors>,
     TState: ActorState<TActor>,
-    &'a TEventSink: Sink<TInput=TEvents, TResult=()>,
-    &'a TErrorSink: Sink<TInput=TErrors, TResult=()>,
+    TEventSink: Sink<TInput=TEvents, TResult=()>,
+    TErrorSink: Sink<TInput=TErrors, TResult=()>,
 {
     pub fn new(
         actor: TActor,
         event_sink: &'a TEventSink,
-        error_sink: &'a TErrorSink,
+        error_sink: &'b TErrorSink,
     ) -> Self {
         let state = TState::from(&actor);
         ActorSystem {
@@ -59,12 +63,12 @@ where
     }
 }
 
-impl<'a, TState, TCommands, TResult, TEvents, TErrors, TActor: 'a, TEventSink: 'a, TErrorSink: 'a> Sink for ActorSystem<'a, TState, TCommands, TResult, TEvents, TErrors, TActor, TEventSink, TErrorSink>
+impl<'a, 'b, TState, TCommands, TResult, TEvents, TErrors, TActor, TEventSink, TErrorSink> Sink for ActorSystem<'a, 'b, TState, TCommands, TResult, TEvents, TErrors, TActor, TEventSink, TErrorSink>
 where
     TActor: Actor<TState=TState, TCommands=TCommands, TResult=TResult, TEvents=TEvents, TErrors=TErrors>,
     TState: ActorState<TActor>,
-    &'a TEventSink: Sink<TInput=TEvents, TResult=()>,
-    &'a TErrorSink: Sink<TInput=TErrors, TResult=()>,
+    TEventSink: Sink<TInput=TEvents, TResult=()>,
+    TErrorSink: Sink<TInput=TErrors, TResult=()>,
 {
     type TInput = TCommands;
     type TResult = TResult;
@@ -75,38 +79,46 @@ where
     }
 }
 
-pub trait IntoActorSystem<'a, TActor>
+pub trait IntoActorSystem<'a, 'b, TActor>
 where
     TActor: Actor,
     TActor::TState: ActorState<TActor>,
 {
     fn bind<TEventSink, TErrorSink>(self,
         events: &'a TEventSink,
-        errors: &'a TErrorSink,
-    ) -> ActorSystem<'a, TActor::TState, TActor::TCommands, TActor::TResult, TActor::TEvents, TActor::TErrors, TActor, TEventSink, TErrorSink>
+        errors: &'b TErrorSink,
+    ) -> ActorSystem<'a, 'b, TActor::TState, TActor::TCommands, TActor::TResult, TActor::TEvents, TActor::TErrors, TActor, TEventSink, TErrorSink>
     where
-        &'a TEventSink: Sink<TInput=TActor::TEvents, TResult=()>,
-        &'a TErrorSink: Sink<TInput=TActor::TErrors, TResult=()>;
+        TEventSink: Sink<TInput=TActor::TEvents, TResult=()>,
+        TErrorSink: Sink<TInput=TActor::TErrors, TResult=()>;
 }
 
-impl<'a, TActor> IntoActorSystem<'a, TActor> for TActor
+impl<'a, 'b, TActor> IntoActorSystem<'a, 'b, TActor> for TActor
 where
     TActor: Actor,
     TActor::TState: ActorState<TActor>,
 {
     fn bind<TEventSink, TErrorSink>(self,
         events: &'a TEventSink,
-        errors: &'a TErrorSink,
-    ) -> ActorSystem<'a, TActor::TState, TActor::TCommands, TActor::TResult, TActor::TEvents, TActor::TErrors, TActor, TEventSink, TErrorSink>
+        errors: &'b TErrorSink,
+    ) -> ActorSystem<'a, 'b, TActor::TState, TActor::TCommands, TActor::TResult, TActor::TEvents, TActor::TErrors, TActor, TEventSink, TErrorSink>
     where
-        &'a TEventSink: Sink<TInput=TActor::TEvents, TResult=()>,
-        &'a TErrorSink: Sink<TInput=TActor::TErrors, TResult=()>,
+        TEventSink: Sink<TInput=TActor::TEvents, TResult=()>,
+        TErrorSink: Sink<TInput=TActor::TErrors, TResult=()>,
     {
         ActorSystem::new(self, events, errors)
     }
 }
 
+// pub fn foo((a, b): (String, u32)) {
+//     println!("Foo: {:?} - {:?}", a, b);
+// }
+
+// pub trait Dispatcher
+
 pub fn main() {
+
+    // foo(("asdf".to_owned(), 10));
 
     let command_counter = RefCell::new(0);
     let commands = FnSink::new(|e: StdinCommands| {
@@ -137,31 +149,51 @@ pub fn main() {
         println!("Errors\t[{}]: {:?}", *counter, err);
     });
 
-    let unit_errors = FnSink::new(|err: ()| {
-        println!("Unit Errors");
+    let unit_sink = FnSink::new(|item: ()| {
+        println!("Unit Sink");
     });
 
-    let actor1 = mocklinereader::Config::new(&[
+    // let reader = linereader::Config::new();
+
+    let reader = mocklinereader::Config::new(&[
         "product/register {\"name\": \"hammer\"}",
         "product/disable ",
     ]);
 
-    let system1 = actor1.bind(&events, &errors);
+    let system1 = reader.bind(&events, &errors);
 
     let unit_errors = FnSink::new(|_unit: ()| {
         println!("Unit");
     });
 
-    let root = console::Config::new();//.bind(&system1, &unit_errors);
-    // let root = console::Config::new().bind(&commands, &unit_errors);
+    // // let root = console::Config::new().bind((&system1, &unit_errors));
+    let root = console::Config::new().bind(&system1, &unit_errors);
 
-    // let command_sink = commands;
-    let command_sink: &Sink<TInput=StdinCommands, TResult=()> = &system1;
+    // let root = root
+    //     .and_then(&system1) // map ok branch into target
+    //     .map(| in_event: StdinEvents | {
+    //         println!("In Event: {:?}", in_event);
+    //         ()
+    //     })
+    //     .bind(&unit_sink, &unit_sink);
+    //     // TODO: .run(); // tranlates to .bind(&unit_sink, &unit_sink)
 
-    let root = ActorSystem::new(root, command_sink, &unit_errors);
+    // let System2(system1_a, system1_b) = system1.tee(); // New actors which replicate
+    // let system1_b = system1_b.skip(1); // New actor which only emits after # more have passed
+    // let system1 = system1_a.zip(system1_b); // New actor which listens to both inputs and emits tuples
 
+
+    
     root.send(());
 
+    let temp = Sink2::new(&system1, &unit_errors);
+
+    let Sink2(sys, unit) = temp;//.spread();
+
+    sys.send(StdinCommands::Await);
+    unit.send(());
+    
+    // let system1 = uc.into_inner();
     // let actor2 = linereader::Config::new();
     // actor1.run();
 
@@ -183,8 +215,10 @@ pub fn main() {
 
     // console.send(());
 
-    system1.send(Await);
-    system1.send(Initialize);
+    // &system1.send(Await);
+    // &system1.send(Initialize);
+    let system1 = &system1.clone();
+
     system1.send(Initialize);
     system1.send(Await);
     system1.send(Await);
@@ -359,7 +393,7 @@ pub fn main() {
 //     }
 // }
 
-// pub trait System<'a, 'b: 'a> {
+// pub trait System<'a, 'b> {
 //     fn sink<TInput, TResult>(&'a self) -> &'b Sink<TInput=TInput, TResult=TResult>;
 // }
 
@@ -387,7 +421,7 @@ pub fn main() {
 //     sinks: Vec<impl Sink<
 // }
 
-// impl<'a, 'b: 'a> System<'a> for LocalSystem {
+// impl<'a, 'b> System<'a> for LocalSystem {
 //     fn sink<TInput, TResult>(&self) -> &'b Sink<TInput=TInput, TResult=TResult> {
 //         // &FnSink::new(|e: TInput| TResult)
 //     }
