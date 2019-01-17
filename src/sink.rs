@@ -80,7 +80,7 @@ pub trait IntoSystem {
     type TInput;
     type TOutput;
 
-    fn into_system(self, ctx: impl Sink<TInput=Self::TOutput, TResult=()>) -> System
+    fn into_system(self, _ctx: impl Sink<TInput=Self::TOutput, TResult=()>) -> System
     where
         Self: Sized,
     {

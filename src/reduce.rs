@@ -1,5 +1,5 @@
 use super::*;
-use lib::core::marker::PhantomData;
+// use lib::core::marker::PhantomData;
 
 /// Reduce dispatches Option Some(inputs) into a nested sink discarding None
 #[derive(Clone, Debug)]

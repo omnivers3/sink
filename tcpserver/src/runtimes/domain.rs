@@ -1,13 +1,8 @@
-use component::{ Actor, ActorState };
-use sink::{ Sink };
+use omnivers3_systems_actor::IntoActorSystem;
+use sink::{ Sink, Sink2 };
 use sink::fnsink::{ FnSink };
 use stdio::*;
-use std::sync::{ Arc, Mutex };
-
-use std::cell::{ UnsafeCell, RefCell };
-use std::rc::{ Rc };
-// use std::cell::Cell;
-// use std::fmt;
+use std::cell::{ RefCell };
 
 pub struct SinkSystem<TSignal, TResult, TSink>
 where
@@ -27,113 +22,14 @@ where
     }
 }
 
-#[derive(Clone)]
-pub struct ActorSystem<'a, 'b, TState, TCommands, TResult, TEvents, TErrors, TActor, TEventSink, TErrorSink>
-where
-    TActor: Actor<TState=TState, TCommands=TCommands, TResult=TResult, TEvents=TEvents, TErrors=TErrors>,
-    TState: ActorState<TActor>,
-    TEventSink: Sink<TInput=TEvents, TResult=()>,
-    TErrorSink: Sink<TInput=TErrors, TResult=()>,
-{
-    actor: TActor,
-    state: RefCell<TState>,
-    event_sink: &'a TEventSink,
-    error_sink: &'b TErrorSink,
-}
-
-impl<'a, 'b, TState, TCommands, TResult, TEvents, TErrors, TActor, TEventSink, TErrorSink> ActorSystem<'a, 'b, TState, TCommands, TResult, TEvents, TErrors, TActor, TEventSink, TErrorSink>
-where
-    TActor: Actor<TState=TState, TCommands=TCommands, TResult=TResult, TEvents=TEvents, TErrors=TErrors>,
-    TState: ActorState<TActor>,
-    TEventSink: Sink<TInput=TEvents, TResult=()>,
-    TErrorSink: Sink<TInput=TErrors, TResult=()>,
-{
-    pub fn new(
-        actor: TActor,
-        event_sink: &'a TEventSink,
-        error_sink: &'b TErrorSink,
-    ) -> Self {
-        let state = TState::from(&actor);
-        ActorSystem {
-            actor,
-            state: RefCell::new(state),
-            event_sink,
-            error_sink,
-        }
-    }
-}
-
-impl<'a, 'b, TState, TCommands, TResult, TEvents, TErrors, TActor, TEventSink, TErrorSink> Sink for ActorSystem<'a, 'b, TState, TCommands, TResult, TEvents, TErrors, TActor, TEventSink, TErrorSink>
-where
-    TActor: Actor<TState=TState, TCommands=TCommands, TResult=TResult, TEvents=TEvents, TErrors=TErrors>,
-    TState: ActorState<TActor>,
-    TEventSink: Sink<TInput=TEvents, TResult=()>,
-    TErrorSink: Sink<TInput=TErrors, TResult=()>,
-{
-    type TInput = TCommands;
-    type TResult = TResult;
-
-    fn send(&self, input: Self::TInput) -> Self::TResult {
-        let mut state = self.state.borrow_mut();
-        self.actor.handle(&mut *state, input, self.event_sink, self.error_sink)
-    }
-}
-
-pub trait IntoActorSystem<'a, 'b, TActor>
-where
-    TActor: Actor,
-    TActor::TState: ActorState<TActor>,
-{
-    fn bind<TEventSink, TErrorSink>(self,
-        events: &'a TEventSink,
-        errors: &'b TErrorSink,
-    ) -> ActorSystem<'a, 'b, TActor::TState, TActor::TCommands, TActor::TResult, TActor::TEvents, TActor::TErrors, TActor, TEventSink, TErrorSink>
-    where
-        TEventSink: Sink<TInput=TActor::TEvents, TResult=()>,
-        TErrorSink: Sink<TInput=TActor::TErrors, TResult=()>;
-}
-
-impl<'a, 'b, TActor> IntoActorSystem<'a, 'b, TActor> for TActor
-where
-    TActor: Actor,
-    TActor::TState: ActorState<TActor>,
-{
-    fn bind<TEventSink, TErrorSink>(self,
-        events: &'a TEventSink,
-        errors: &'b TErrorSink,
-    ) -> ActorSystem<'a, 'b, TActor::TState, TActor::TCommands, TActor::TResult, TActor::TEvents, TActor::TErrors, TActor, TEventSink, TErrorSink>
-    where
-        TEventSink: Sink<TInput=TActor::TEvents, TResult=()>,
-        TErrorSink: Sink<TInput=TActor::TErrors, TResult=()>,
-    {
-        ActorSystem::new(self, events, errors)
-    }
-}
-
-// pub fn foo((a, b): (String, u32)) {
-//     println!("Foo: {:?} - {:?}", a, b);
-// }
-
-// pub trait Dispatcher
-
 pub fn main() {
 
-    // foo(("asdf".to_owned(), 10));
-
     let command_counter = RefCell::new(0);
-    let commands = FnSink::new(|e: StdinCommands| {
+    let _commands = FnSink::new(|e: StdinCommands| {
         let mut counter = command_counter.borrow_mut();
         *counter += 1;
         println!("Command\t[{}]: {:?}", *counter, e);
     });
-
-    // let unit_errors = FnSink::new(|_unit: ()| {
-    //     println!("Unit");
-    // });
-
-    // let root = console::Config::new().bind(&commands, &unit_errors);
-
-    // root.send(());
 
     let event_counter = RefCell::new(0);
     let events = FnSink::new(|e: StdinEvents| {
@@ -149,7 +45,7 @@ pub fn main() {
         println!("Errors\t[{}]: {:?}", *counter, err);
     });
 
-    let unit_sink = FnSink::new(|item: ()| {
+    let _unit_sink = FnSink::new(|_item: ()| {
         println!("Unit Sink");
     });
 
