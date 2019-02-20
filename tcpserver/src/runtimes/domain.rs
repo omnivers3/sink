@@ -114,7 +114,9 @@ where
 //     println!("Foo: {:?} - {:?}", a, b);
 // }
 
-// pub trait Dispatcher
+pub trait Dispatcher {
+    
+}
 
 pub fn main() {
 
