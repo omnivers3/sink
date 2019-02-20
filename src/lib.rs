@@ -21,6 +21,7 @@ pub mod reduce;
 pub mod reflect;
 pub mod resultmap;
 pub mod sink;
+pub mod sink2;
 
 // pub use self::asyncsink::*;
 pub use self::echo::*;
@@ -31,6 +32,7 @@ pub use self::reduce::*;
 pub use self::resultmap::*;
 pub use self::reflect::*;
 pub use self::sink::*;
+pub use self::sink2::*;
 
 #[macro_use]
 mod macros;

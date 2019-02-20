@@ -1,13 +1,8 @@
-use component::{ Actor, ActorState };
-use sink::{ Sink };
+use omnivers3_systems_actor::IntoActorSystem;
+use sink::{ Sink, Sink2 };
 use sink::fnsink::{ FnSink };
 use stdio::*;
-use std::sync::{ Arc, Mutex };
-
-use std::cell::{ UnsafeCell, RefCell };
-use std::rc::{ Rc };
-// use std::cell::Cell;
-// use std::fmt;
+use std::cell::{ RefCell };
 
 pub struct SinkSystem<TSignal, TResult, TSink>
 where
@@ -120,22 +115,12 @@ pub trait Dispatcher {
 
 pub fn main() {
 
-    // foo(("asdf".to_owned(), 10));
-
     let command_counter = RefCell::new(0);
-    let commands = FnSink::new(|e: StdinCommands| {
+    let _commands = FnSink::new(|e: StdinCommands| {
         let mut counter = command_counter.borrow_mut();
         *counter += 1;
         println!("Command\t[{}]: {:?}", *counter, e);
     });
-
-    // let unit_errors = FnSink::new(|_unit: ()| {
-    //     println!("Unit");
-    // });
-
-    // let root = console::Config::new().bind(&commands, &unit_errors);
-
-    // root.send(());
 
     let event_counter = RefCell::new(0);
     let events = FnSink::new(|e: StdinEvents| {
@@ -151,7 +136,7 @@ pub fn main() {
         println!("Errors\t[{}]: {:?}", *counter, err);
     });
 
-    let unit_sink = FnSink::new(|item: ()| {
+    let _unit_sink = FnSink::new(|_item: ()| {
         println!("Unit Sink");
     });
 
